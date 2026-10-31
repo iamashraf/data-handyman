@@ -131,6 +131,81 @@
   background: var(--surface);
 }
 
+/* Add row / Export / Import row — same button vocabulary as
+   TemplateBuilderPage's .tb-add-column (text-style accent action) and
+   .tb-cancel (bordered neutral button), so this page's new actions read
+   as the same product rather than inventing a second button language. */
+.dv-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.dv-add-row {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+}
+
+.dv-add-row:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+}
+
+.dv-toolbar-button {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dv-toolbar-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dv-toolbar-button:disabled,
+.dv-toolbar-button:has(input:disabled) {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* The Import button is a styled <label> wrapping a native file input —
+   the input itself is visually hidden but still keyboard- and
+   screen-reader-accessible (clicking/activating the label opens the file
+   picker, same as clicking a visible native input would). */
+.dv-import-label {
+  position: relative;
+  display: inline-block;
+}
+
+.dv-import-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* The real focus target (the hidden input) is invisible, so the global
+   :focus-visible outline from tokens.css would draw on nothing — put it
+   on the visible label instead when the input inside it has focus. */
+.dv-import-label:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .dv-error {
   color: var(--warn);
   background: var(--warn-bg);
@@ -139,6 +214,54 @@
   padding: var(--space-3);
   margin-bottom: var(--space-4);
   font-size: 14px;
+}
+
+/* Per-row delete action in the grid's trailing column — same bordered,
+   warn-on-hover treatment as TemplateBuilderPage's .tb-remove-column. */
+.dv-delete-row {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.dv-delete-row:hover {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+/* Import result: per-row errors use the same warn treatment as .dv-error;
+   a clean import uses the accent color, matching .tb-status. */
+.dv-import-errors {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: 14px;
+}
+
+.dv-import-errors p {
+  margin: 0;
+}
+
+.dv-import-errors ul {
+  margin: var(--space-2) 0 0 0;
+  padding-left: var(--space-5);
+}
+
+.dv-import-errors li {
+  margin-bottom: var(--space-1);
+}
+
+.dv-import-success {
+  color: var(--accent);
+  font-size: 14px;
+  margin: 0 0 var(--space-4) 0;
 }
 
 /* Loading state: plain-language text, not a blank flash. */

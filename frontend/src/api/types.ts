@@ -31,3 +31,8 @@ export interface RecordRead {
   created_at: string;
   updated_at: string;
 }
+
+export interface ImportResult {
+  imported_count: number;
+  errors: { row_number: number; reason: string }[];
+}
