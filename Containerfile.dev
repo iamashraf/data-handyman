@@ -17,8 +17,9 @@ RUN pip install --no-cache-dir uv==0.13.5
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 
 WORKDIR /app
-COPY backend/pyproject.toml ./
-RUN uv sync
+COPY backend/pyproject.toml backend/uv.lock ./
+# --locked fails the build if uv.lock is out of date with pyproject.toml.
+RUN uv sync --locked
 
 EXPOSE 8000
 CMD ["uv", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0"]
