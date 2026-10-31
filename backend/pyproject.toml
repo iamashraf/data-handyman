@@ -1,0 +1,28 @@
+[project]
+name = "handy-recorder-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "openpyxl",
+    "formulas",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "httpx",
+    "ruff",
+    "black",
+]
+
+[tool.pytest.ini_options]
+# Lets tests import the `app` package from backend/ without installing it.
+pythonpath = ["."]
+# Starlette 1.x warns that TestClient should use httpx2. Silence only that
+# message until the project moves to httpx2.
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient`:UserWarning",
+]
