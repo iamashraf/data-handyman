@@ -6,3 +6,4 @@ node_modules/
 dist/
 *.db
 .superpowers/
+.claude/worktrees/
