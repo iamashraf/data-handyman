@@ -1,0 +1,38 @@
+# Local exploration stack for Handy Recorder.
+#
+# SQLite is not a separate service: the database is a single file inside
+# the backend's bind-mounted volume, so it already persists across
+# container restarts without any extra service here.
+#
+# Backend has no startup DB-init hook yet (that's a later task) — after
+# the first `up`, initialize the schema once with:
+#   podman compose exec backend uv run python -c \
+#     "from app.db import get_connection, init_db, DEFAULT_DB_PATH; init_db(get_connection(DEFAULT_DB_PATH))"
+#
+# Run:    podman compose up --build
+# Stop:   podman compose down
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Containerfile.dev
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    ports:
+      - "8010:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Containerfile.frontend-dev
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_DEV_PROXY_TARGET=http://backend:8000
+    depends_on:
+      - backend
