@@ -1,9 +1,14 @@
 """Import service: read records from an uploaded .xlsx workbook.
 
-Reads the first sheet. The header row must match the template's
-*non-formula* column names exactly (order-independent) -- formula columns
-are computed, not imported, so they're never expected in the file. On a
-header mismatch, nothing is imported and a single row-0 error is reported.
+Reads the first sheet. The header row must contain every one of the
+template's *non-formula* columns (order-independent) -- those are the only
+cells read for each row. Extra header columns are tolerated and ignored,
+including a formula column's name: this is what makes "export, edit a raw
+cell, re-import" work, since `export_service` writes formula columns into
+the header too (as their computed values), and those were never meant to
+be re-imported as input. Only a header *missing* a required non-formula
+column triggers the mismatch error, which aborts with nothing imported and
+a single row-0 error.
 
 Otherwise each data row is validated independently: a row with any
 invalid cell is skipped and reported in `errors` (with its 1-based
@@ -131,15 +136,16 @@ def import_xlsx(
     rows = list(sheet.iter_rows(values_only=True))
 
     header = _header_names(rows[0]) if rows else []
-    if sorted(header) != sorted(expected_names):
+    missing = [name for name in expected_names if name not in header]
+    if missing:
         return ImportResult(
             imported_count=0,
             errors=[
                 ImportRowError(
                     row_number=0,
                     reason=(
-                        "Header mismatch: expected columns "
-                        f"{sorted(expected_names)}, found {sorted(header)}"
+                        "Header mismatch: missing required column(s) "
+                        f"{sorted(missing)}, found {sorted(header)}"
                     ),
                 )
             ],
