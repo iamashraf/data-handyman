@@ -8,6 +8,7 @@ dependencies = [
     "pydantic",
     "openpyxl",
     "formulas",
+    "python-multipart>=0.0.33",
 ]
 
 [dependency-groups]

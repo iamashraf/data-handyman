@@ -1,10 +1,16 @@
 import sqlite3
+from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
 from app.db import get_db
-from app.services import export_service, record_service, template_service
+from app.services import (
+    export_service,
+    import_service,
+    record_service,
+    template_service,
+)
 
 router = APIRouter(tags=["export"])
 
@@ -74,3 +80,27 @@ def export_template(
         media_type=XLSX_CONTENT_TYPE,
         headers={"Content-Disposition": _content_disposition(f"{template.name}.xlsx")},
     )
+
+
+@router.post("/templates/{template_id}/import")
+def import_template(
+    template_id: int,
+    file: Annotated[UploadFile, File()],
+    conn: sqlite3.Connection = Depends(get_db),
+) -> dict:
+    template = template_service.get_template(conn, template_id)
+    if template is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    file_bytes = file.file.read()
+    try:
+        result = import_service.import_xlsx(conn, template, file_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return {
+        "imported_count": result.imported_count,
+        "errors": [
+            {"row_number": e.row_number, "reason": e.reason} for e in result.errors
+        ],
+    }
