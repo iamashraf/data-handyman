@@ -1,4 +1,5 @@
 import sqlite3
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -19,6 +20,17 @@ class TemplateUpdateRequest(BaseModel):
     name: str
     columns: list[TemplateColumn]
     force: bool = False
+
+
+class TemplateApplied(BaseModel):
+    status: Literal["applied"] = "applied"
+    template: TemplateRead
+
+
+class TemplateWarning(BaseModel):
+    status: Literal["warning"] = "warning"
+    affected_record_count: int
+    reasons: list[str]
 
 
 @router.post("", status_code=201, response_model=TemplateRead)
@@ -46,12 +58,12 @@ def get_template(
     return template
 
 
-@router.put("/{template_id}")
+@router.put("/{template_id}", response_model=TemplateApplied | TemplateWarning)
 def update_template(
     template_id: int,
     payload: TemplateUpdateRequest,
     conn: sqlite3.Connection = Depends(get_db),
-) -> dict:
+) -> TemplateApplied | TemplateWarning:
     try:
         result = template_service.update_template(
             conn, template_id, payload.name, payload.columns, force=payload.force
@@ -62,12 +74,11 @@ def update_template(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     if result.template is not None:
-        return {"status": "applied", "template": result.template}
-    return {
-        "status": "warning",
-        "affected_record_count": result.warning.affected_record_count,
-        "reasons": result.warning.reasons,
-    }
+        return TemplateApplied(template=result.template)
+    return TemplateWarning(
+        affected_record_count=result.warning.affected_record_count,
+        reasons=result.warning.reasons,
+    )
 
 
 @router.delete("/{template_id}", status_code=204)
