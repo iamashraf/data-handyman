@@ -18,6 +18,12 @@ dev = [
     "black",
 ]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection pattern calls `Depends(...)` in argument
+# defaults by design; this isn't the mutable-default-argument bug B008
+# otherwise flags.
+extend-immutable-calls = ["fastapi.Depends"]
+
 [tool.pytest.ini_options]
 # Lets tests import the `app` package from backend/ without installing it.
 pythonpath = ["."]
