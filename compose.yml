@@ -11,6 +11,17 @@
 #
 # Run:    podman compose up --build
 # Stop:   podman compose down
+#
+# Known environment issue (not caused by this project): on some podman
+# setups, the commit/tag step of `podman build` (including the one
+# `podman compose up --build` runs internally) can be rejected by an
+# image-signing policy — "Source image rejected ... by policy" — even for
+# a brand-new, never-before-used tag. If that happens, build each image
+# directly first (`podman build -t handy-recorder-backend -f
+# Containerfile.dev .` / `-t handy-recorder-frontend -f
+# Containerfile.frontend-dev .`), which may hit the same error but often
+# still leaves a usable tagged image behind; then run `podman compose up`
+# WITHOUT `--build` so compose just runs the already-built images.
 
 services:
   backend:
