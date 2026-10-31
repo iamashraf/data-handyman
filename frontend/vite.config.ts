@@ -10,6 +10,16 @@ export default defineConfig({
       // deliver filesystem change events, so fall back to polling.
       usePolling: true,
     },
+    // Dev-only proxy so the Vite dev server and the backend can be explored
+    // together without CORS wiring. Not part of any plan task; local
+    // exploration convenience only. Target is configurable since it differs
+    // between an ad hoc manual run (host.containers.internal:<port>) and a
+    // future compose-based run (the backend service's name on the compose
+    // network, e.g. http://backend:8000).
+    proxy: {
+      "/templates": process.env.VITE_DEV_PROXY_TARGET ?? "http://backend:8000",
+      "/records": process.env.VITE_DEV_PROXY_TARGET ?? "http://backend:8000",
+    },
   },
   test: {
     environment: "jsdom",
