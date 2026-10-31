@@ -1,8 +1,11 @@
+import os
 import sqlite3
 from collections.abc import Iterator
 
-# Default on-disk database for running the app outside of tests.
-DEFAULT_DB_PATH = "handy_recorder.db"
+# On-disk database path for running the app outside of tests, overridable
+# via the DB_PATH env var (the production container points this at its
+# mounted data volume).
+DB_PATH = os.environ.get("DB_PATH", "/data/handy_recorder.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS templates (
@@ -36,7 +39,7 @@ def get_db() -> Iterator[sqlite3.Connection]:
     Tests override this (see `tests/conftest.py`) so routes run against an
     isolated, already-initialized `db_conn` fixture instead of this default.
     """
-    conn = get_connection(DEFAULT_DB_PATH)
+    conn = get_connection(DB_PATH)
     try:
         yield conn
     finally:
