@@ -1,0 +1,68 @@
+/*
+ * Design tokens — Handy Recorder
+ *
+ * Visual direction: a modernized accounting-ledger register ("greenbar" paper,
+ * ruled rows, deep ink text) rather than a generic SaaS dashboard. See
+ * frontend/src/pages/TemplateBuilderPage.tsx for the design-plan writeup.
+ *
+ * Fonts are system stacks, not a webfont, on purpose: this app is a
+ * self-hosted single-container tool whose only host prerequisite is Podman
+ * (spec §2) and must work with no internet access. A Google Fonts CDN would
+ * break that guarantee; bundling a font package would need a new dependency
+ * and a container rebuild outside this task's scope. Distinctiveness comes
+ * from color, the ruled-table structure, and the monospace formula field
+ * instead of an unusual typeface.
+ */
+
+:root {
+  --paper: #f2f4ee;
+  --paper-band: #e3ead9;
+  --ink: #202b23;
+  --ink-muted: #51604f;
+  --rule: #b7c4ac;
+  --accent: #3c6e53;
+  --accent-ink: #f2f4ee;
+  --warn: #9c4a2c;
+  --warn-ink: #f8f1ec;
+  --warn-bg: #f5e9e3;
+  --surface: #ffffff;
+
+  --font-heading: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  --font-body: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius: 7px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+body {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -1,0 +1,359 @@
+.tb-page {
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-5);
+}
+
+.tb-header {
+  margin: 0 0 var(--space-5) 0;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: 0.01em;
+}
+
+.tb-layout {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+  max-width: 920px;
+}
+
+/* Sidebar: a plain ledger index, not a card. */
+.tb-sidebar {
+  flex: 0 0 200px;
+}
+
+.tb-sidebar h2 {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.tb-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.tb-sidebar-item {
+  border-bottom: 1px solid var(--rule);
+}
+
+.tb-sidebar-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) var(--space-1);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.tb-sidebar-button:hover {
+  background: var(--paper-band);
+}
+
+.tb-sidebar-button[aria-current="true"] {
+  border-left-color: var(--accent);
+  font-weight: 600;
+  background: var(--paper-band);
+}
+
+.tb-sidebar-new {
+  margin-top: var(--space-3);
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+}
+
+.tb-sidebar-error {
+  color: var(--warn);
+  font-size: 13px;
+}
+
+/* Main builder panel */
+.tb-main {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+}
+
+.tb-main h2 {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 var(--space-4) 0;
+}
+
+.tb-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  max-width: 420px;
+}
+
+.tb-field label {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.tb-field input {
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.tb-field input:focus-visible {
+  background: var(--surface);
+}
+
+.tb-columns-heading {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin: 0 0 var(--space-2) 0;
+}
+
+/* The ruled ledger table: the one bold structural move on this page. Row
+   numbers are earned here because column order is a real, meaningful
+   sequence in the data model, not decoration. */
+.tb-table-wrap {
+  overflow-x: auto;
+}
+
+.tb-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  margin-bottom: var(--space-3);
+}
+
+.tb-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.tb-table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+
+.tb-table tbody tr:nth-child(odd) {
+  background: var(--paper-band);
+}
+
+.tb-row-index {
+  width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.tb-no-columns {
+  color: var(--ink-muted);
+  font-size: 14px;
+  padding: var(--space-3) var(--space-2);
+  text-align: left;
+}
+
+.tb-table input,
+.tb-table select {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* Formula is real Excel syntax the user is writing — it earns the one
+   monospace, inset treatment on the page. Scoped under .tb-table so it
+   wins on specificity over the general input rule without !important. */
+.tb-table .tb-formula-input {
+  font-family: var(--font-mono);
+  background: var(--paper);
+}
+
+.tb-remove-column {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tb-remove-column:hover {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.tb-add-column {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+}
+
+.tb-error {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-top: var(--space-4);
+  font-size: 14px;
+}
+
+.tb-status {
+  color: var(--accent);
+  font-size: 14px;
+  margin-top: var(--space-4);
+}
+
+.tb-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.tb-save {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-5);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tb-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Destructive-change confirmation */
+.tb-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(32, 43, 35, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.tb-dialog {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 8px 24px rgba(32, 43, 35, 0.25);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tb-overlay {
+    animation: tb-fade-in 0.12s ease-out;
+  }
+}
+
+@keyframes tb-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tb-dialog h2 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  margin: 0 0 var(--space-3) 0;
+}
+
+.tb-dialog p {
+  margin: 0 0 var(--space-3) 0;
+  font-size: 14px;
+}
+
+.tb-dialog ul {
+  margin: 0 0 var(--space-4) 0;
+  padding-left: var(--space-5);
+  font-size: 14px;
+}
+
+.tb-dialog li {
+  margin-bottom: var(--space-1);
+}
+
+.tb-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.tb-cancel {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-4);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.tb-confirm {
+  background: var(--warn);
+  color: var(--warn-ink);
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .tb-layout {
+    flex-direction: column;
+  }
+
+  .tb-sidebar {
+    flex: initial;
+    width: 100%;
+  }
+}
