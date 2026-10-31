@@ -186,7 +186,7 @@ requires-dist = [
     { name = "formulas" },
     { name = "openpyxl" },
     { name = "pydantic" },
-    { name = "python-multipart", specifier = ">=0.0.33" },
+    { name = "python-multipart" },
     { name = "uvicorn" },
 ]
 
