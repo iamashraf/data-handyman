@@ -1,0 +1,202 @@
+/*
+ * Data view page — reuses the greenbar-ledger tokens from
+ * src/styles/tokens.css (established by TemplateBuilderPage). See that
+ * file's header comment for the full design rationale. This page adds no
+ * new colors or typefaces: the sidebar/panel structure below mirrors
+ * TemplateBuilderPage.css's .tb-sidebar / .tb-main pattern so the two pages
+ * read as one product, not two.
+ */
+
+.dv-page {
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-5);
+}
+
+.dv-header {
+  margin: 0 0 var(--space-5) 0;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: 0.01em;
+}
+
+.dv-layout {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+  max-width: 1100px;
+}
+
+/* Sidebar: same plain ledger index as the template builder's .tb-sidebar. */
+.dv-sidebar {
+  flex: 0 0 200px;
+}
+
+.dv-sidebar h2 {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.dv-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.dv-sidebar-item {
+  border-bottom: 1px solid var(--rule);
+}
+
+.dv-sidebar-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) var(--space-1);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.dv-sidebar-button:hover {
+  background: var(--paper-band);
+}
+
+.dv-sidebar-button[aria-current="true"] {
+  border-left-color: var(--accent);
+  font-weight: 600;
+  background: var(--paper-band);
+}
+
+.dv-sidebar-error {
+  color: var(--warn);
+  font-size: 13px;
+}
+
+/* Main panel */
+.dv-main {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+}
+
+.dv-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.dv-toolbar h2 {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.dv-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dv-search-label {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.dv-search input {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  min-width: 200px;
+}
+
+.dv-search input:focus-visible {
+  background: var(--surface);
+}
+
+.dv-error {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: 14px;
+}
+
+/* Loading state: plain-language text, not a blank flash. */
+.dv-loading {
+  color: var(--ink-muted);
+  font-size: 14px;
+  padding: var(--space-4) 0;
+}
+
+.dv-empty {
+  color: var(--ink-muted);
+  font-size: 14px;
+  padding: var(--space-4) 0;
+}
+
+/* Shown next to the grid during a search re-fetch — the grid itself stays
+   mounted and visible, so typing a search never blanks the sheet out
+   from under the user. */
+.dv-searching {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin: 0 0 var(--space-2) 0;
+}
+
+/* AG-Grid wrapper. The grid's own chrome (border, radius, row/header
+   colors) is themed via the Theming API object in DataViewPage.tsx, built
+   from this same token set — this just fixes a scroll height so the grid
+   behaves like a real spreadsheet viewport. */
+.dv-grid {
+  height: 420px;
+  width: 100%;
+}
+
+/* A formula result of "#VALUE!" gets a visibly marked error treatment —
+   the same warn/rust tokens used for the destructive-confirm dialog in
+   TemplateBuilderPage.css, so "this is wrong" reads consistently across
+   the app. */
+.dv-cell-error {
+  display: inline-block;
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-radius: 4px;
+  padding: 1px var(--space-1);
+  font-weight: 600;
+}
+
+.dv-numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .dv-layout {
+    flex-direction: column;
+  }
+
+  .dv-sidebar {
+    flex: initial;
+    width: 100%;
+  }
+}

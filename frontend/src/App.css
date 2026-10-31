@@ -1,0 +1,28 @@
+/* Top-level page nav — shared chrome above every page, added in Task 3 to
+   switch between the template builder and the data view. Reuses the same
+   tokens as every other page's chrome (src/styles/tokens.css). */
+.app-nav {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-5) 0;
+}
+
+.app-nav-button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-2);
+  cursor: pointer;
+}
+
+.app-nav-button:hover {
+  color: var(--ink);
+}
+
+.app-nav-button[aria-current="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
