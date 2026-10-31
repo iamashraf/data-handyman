@@ -52,3 +52,23 @@ def test_evaluate_returns_plain_bool_not_numpy_bool():
     result = evaluate_formula("=NOT([@flag])", {"flag": True})
     assert result is False
     assert type(result) is bool
+
+
+def test_evaluate_ignores_bracket_token_inside_string_literal():
+    # `[@fake]` here is a quoted IF branch value, not a reference to a
+    # column named "fake" -- must not be substituted, and must not raise
+    # FormulaError for a "missing" column that was never really referenced.
+    result = evaluate_formula('=IF([@status]="[@fake]","x","y")', {"status": "[@fake]"})
+    assert result == "x"
+
+
+def test_evaluate_preserves_literal_text_containing_bracket_token():
+    result = evaluate_formula('=IF([@status]="Open","[@fake]","y")', {"status": "Open"})
+    assert result == "[@fake]"
+
+
+def test_validate_formula_ignores_bracket_token_inside_string_literal():
+    errors = validate_formula(
+        '=IF([@status]="[@fake]","x","y")', column_names=["status"]
+    )
+    assert errors == []

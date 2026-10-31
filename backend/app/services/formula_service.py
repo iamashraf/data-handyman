@@ -8,7 +8,9 @@ library understands directly (it models real worksheet cells, not ad-hoc
 per-row structured references). So each token is first substituted with the
 row's actual value, formatted as a literal Excel token (strings quoted,
 numbers/booleans bare), leaving a plain literal-only formula string, which
-`formulas` then parses and evaluates on its own.
+`formulas` then parses and evaluates on its own. Reference matching skips
+text inside `"..."` string literals, so a formula branch like
+`"[@fake]"` is literal text, not a column reference.
 
 Known boundary: supported syntax is whatever the `formulas` library
 supports (logical, lookup, text, math, date/time functions, comparison and
@@ -31,12 +33,58 @@ class FormulaError(Exception):
     """Raised when a formula fails to parse/evaluate for a given row."""
 
 
+def _iter_spans(expression: str) -> list[tuple[str, bool]]:
+    """Split `expression` into (text, in_string) spans on Excel `"..."`
+    string literals (where `""` inside a literal is an escaped quote).
+
+    `[@col]`-shaped text only means a column reference outside of a string
+    literal; the same text inside a quoted literal (e.g. the branch value
+    `"[@fake]"` in an IF formula) is just text and must be left alone.
+    """
+    spans: list[tuple[str, bool]] = []
+    i = 0
+    n = len(expression)
+    span_start = 0
+    in_string = False
+    while i < n:
+        if expression[i] != '"':
+            i += 1
+            continue
+        if in_string:
+            if i + 1 < n and expression[i + 1] == '"':
+                i += 2  # escaped "" inside the literal; stay in the string
+                continue
+            i += 1  # closing quote
+            spans.append((expression[span_start:i], True))
+            span_start = i
+            in_string = False
+        else:
+            if i > span_start:
+                spans.append((expression[span_start:i], False))
+            span_start = i
+            in_string = True
+            i += 1
+    if span_start < n:
+        spans.append((expression[span_start:], in_string))
+    return spans
+
+
 def _extract_refs(expression: str) -> list[str]:
-    return _REF_PATTERN.findall(expression)
+    refs: list[str] = []
+    for text, in_string in _iter_spans(expression):
+        if not in_string:
+            refs.extend(_REF_PATTERN.findall(text))
+    return refs
 
 
 def _substitute_refs(expression: str, literal_for) -> str:
-    return _REF_PATTERN.sub(lambda m: literal_for(m.group(1)), expression)
+    parts = []
+    for text, in_string in _iter_spans(expression):
+        if in_string:
+            parts.append(text)
+        else:
+            parts.append(_REF_PATTERN.sub(lambda m: literal_for(m.group(1)), text))
+    return "".join(parts)
 
 
 def _format_literal(value: Any) -> str:
