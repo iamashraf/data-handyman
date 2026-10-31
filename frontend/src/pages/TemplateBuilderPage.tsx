@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import {
   ApiError,
   createTemplate,
@@ -193,7 +194,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     }
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     save(false);
   }
@@ -206,7 +207,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     save(true);
   }
 
-  function handleDialogKeyDown(event: React.KeyboardEvent) {
+  function handleDialogKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       handleCancelWarning();
     }
