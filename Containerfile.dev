@@ -1,0 +1,25 @@
+# Dev container for the backend. Used for all test, lint, and dev-server work.
+#
+# Build once:
+#   podman build -f Containerfile.dev -t handy-recorder-dev .
+#
+# Run tests:
+#   podman run --rm -v $(pwd)/backend:/app -w /app handy-recorder-dev uv run pytest -v
+#
+# Run the dev server (reloads on changes in backend/):
+#   podman run --rm -p 8000:8000 -v $(pwd)/backend:/app -w /app handy-recorder-dev
+
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir uv==0.13.5
+
+# Keep the venv outside /app. The backend/ bind mount hides anything under /app.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+
+WORKDIR /app
+COPY backend/pyproject.toml backend/uv.lock ./
+# --locked fails the build if uv.lock is out of date with pyproject.toml.
+RUN uv sync --locked
+
+EXPOSE 8000
+CMD ["uv", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0"]
