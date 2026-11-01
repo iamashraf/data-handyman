@@ -158,6 +158,14 @@ function RowActionsCell(
   );
 }
 
+/** Matches the backend's expected date format (date.fromisoformat), and
+ *  what typing a plain "YYYY-MM-DD" date into the edit form produces. */
+function isValidIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 export function DataViewPage({ templateId }: DataViewPageProps) {
   const [templates, setTemplates] = useState<TemplateRead[]>([]);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
@@ -419,6 +427,15 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
    *  partial patch); for a new row, a POST creating it for the first
    *  time. */
   async function handleSaveEdit() {
+    if (!template) return;
+    for (const column of template.columns) {
+      if (column.type !== "date") continue;
+      const value = editDraft[column.name];
+      if (value != null && !isValidIsoDate(String(value))) {
+        setEditSaveError(`"${column.name}" needs a date as YYYY-MM-DD, e.g. 2024-01-15.`);
+        return;
+      }
+    }
     if (editModalMode === "edit" && editingRecordId != null) {
       setSavingEdit(true);
       setEditSaveError(null);
@@ -794,13 +811,12 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                     ) : col.type === "date" ? (
                       <>
                         <input
-                          type="date"
+                          type="text"
+                          placeholder="YYYY-MM-DD"
                           value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
                           onChange={(e) => handleEditFieldChange(col.name, e.target.value || null)}
                         />
-                        <span className="dv-field-hint">
-                          Click the month, day, or year and type — no need to open the calendar.
-                        </span>
+                        <span className="dv-field-hint">Type the date as YYYY-MM-DD, e.g. 2024-01-15.</span>
                       </>
                     ) : (
                       <input
