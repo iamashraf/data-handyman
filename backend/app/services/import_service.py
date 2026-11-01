@@ -119,6 +119,46 @@ def _header_names(row: tuple) -> list[str]:
     return names
 
 
+def infer_template_columns(file_bytes: bytes) -> list[TemplateColumn]:
+    """Guess a new template's columns from an uploaded workbook's header
+    row and data, for the "create a template from an Excel file" flow.
+
+    Each column's type is guessed from its own non-blank values, checked
+    in most-specific-first order (boolean, then number, then date) so e.g.
+    a column of "true"/"false" strings becomes boolean rather than text --
+    text is the fallback, since `_coerce_text` accepts anything. A column
+    with no non-blank values (or no data rows at all) defaults to text.
+    No formulas are inferred; the user adds those afterward if they want
+    them, same as any other template edit.
+    """
+    try:
+        workbook = load_workbook(io.BytesIO(file_bytes), data_only=True)
+    except (zipfile.BadZipFile, InvalidFileException) as exc:
+        raise ValueError("Could not read uploaded file as an .xlsx workbook") from exc
+
+    sheet = workbook.worksheets[0]
+    rows = list(sheet.iter_rows(values_only=True))
+    header = _header_names(rows[0]) if rows else []
+    if not header:
+        raise ValueError("Uploaded file has no header row to infer columns from")
+
+    data_rows = rows[1:]
+    columns: list[TemplateColumn] = []
+    for index, name in enumerate(header):
+        values = [
+            row[index]
+            for row in data_rows
+            if index < len(row) and row[index] is not None
+        ]
+        inferred_type = "text"
+        for candidate in ("boolean", "number", "date"):
+            if values and all(_COERCERS[candidate](v)[0] for v in values):
+                inferred_type = candidate
+                break
+        columns.append(TemplateColumn(name=name, type=inferred_type, formula=None))
+    return columns
+
+
 def import_xlsx(
     conn: sqlite3.Connection, template: TemplateRead, file_bytes: bytes
 ) -> ImportResult:

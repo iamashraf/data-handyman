@@ -82,6 +82,50 @@
   font-size: 13px;
 }
 
+/* "Create from Excel" — same field/button vocabulary as
+   TemplateBuilderPage's .tb-field and this page's own .dv-toolbar-button,
+   so a third entry point into the app still reads as the same product. */
+.dv-create-from-excel {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.dv-create-from-excel h2 {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.dv-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.dv-field input[type="text"] {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.dv-field input[type="text"]:focus-visible {
+  background: var(--surface);
+}
+
+.dv-create-from-excel-button {
+  width: 100%;
+  text-align: center;
+  margin-bottom: var(--space-2);
+}
+
 /* Main panel */
 .dv-main {
   flex: 1;

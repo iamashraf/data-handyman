@@ -2,9 +2,11 @@ import sqlite3
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from pydantic import BaseModel
 
 from app.db import get_db
+from app.models.template import TemplateRead
 from app.services import (
     export_service,
     import_service,
@@ -15,6 +17,31 @@ from app.services import (
 router = APIRouter(tags=["export"])
 
 XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+class ImportRowErrorResponse(BaseModel):
+    row_number: int
+    reason: str
+
+
+class ImportResultResponse(BaseModel):
+    imported_count: int
+    errors: list[ImportRowErrorResponse]
+
+
+class TemplateFromExcelResponse(BaseModel):
+    template: TemplateRead
+    import_result: ImportResultResponse
+
+
+def _import_result_response(result: import_service.ImportResult) -> ImportResultResponse:
+    return ImportResultResponse(
+        imported_count=result.imported_count,
+        errors=[
+            ImportRowErrorResponse(row_number=e.row_number, reason=e.reason)
+            for e in result.errors
+        ],
+    )
 
 
 def _content_disposition(filename: str) -> str:
@@ -87,7 +114,7 @@ def import_template(
     template_id: int,
     file: Annotated[UploadFile, File()],
     conn: sqlite3.Connection = Depends(get_db),
-) -> dict:
+) -> ImportResultResponse:
     template = template_service.get_template(conn, template_id)
     if template is None:
         raise HTTPException(status_code=404, detail="Template not found")
@@ -98,9 +125,32 @@ def import_template(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    return {
-        "imported_count": result.imported_count,
-        "errors": [
-            {"row_number": e.row_number, "reason": e.reason} for e in result.errors
-        ],
-    }
+    return _import_result_response(result)
+
+
+@router.post("/templates/from-excel")
+def create_template_from_excel(
+    name: Annotated[str, Form()],
+    file: Annotated[UploadFile, File()],
+    conn: sqlite3.Connection = Depends(get_db),
+) -> TemplateFromExcelResponse:
+    """Create a new template by inferring its columns from an uploaded
+    .xlsx file's header/data, then immediately import that same file's
+    rows as the template's first records -- one combined action, no
+    separate "review the inferred schema" step (the columns can always be
+    edited afterward like any other template)."""
+    file_bytes = file.file.read()
+    try:
+        columns = import_service.infer_template_columns(file_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        template = template_service.create_template(conn, name, columns)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    result = import_service.import_xlsx(conn, template, file_bytes)
+    return TemplateFromExcelResponse(
+        template=template, import_result=_import_result_response(result)
+    )

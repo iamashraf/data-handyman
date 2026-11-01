@@ -158,3 +158,23 @@ export async function importTemplate(templateId: number, file: File): Promise<Im
   }
   return (await parseBody(res)) as ImportResult;
 }
+
+/** Creates a new template by inferring its columns from an uploaded
+ *  .xlsx file's header/data, and imports that same file's rows as the
+ *  template's first records in the same action. */
+export async function createTemplateFromExcel(
+  name: string,
+  file: File
+): Promise<{ template: TemplateRead; import_result: ImportResult }> {
+  const formData = new FormData();
+  formData.append("name", name);
+  formData.append("file", file);
+  const res = await fetch(`${BASE_URL}/templates/from-excel`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, await parseBody(res));
+  }
+  return (await parseBody(res)) as { template: TemplateRead; import_result: ImportResult };
+}
