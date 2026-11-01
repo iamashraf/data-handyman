@@ -614,8 +614,14 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
           };
         }
         if (col.format === "choice" && col.options?.length) {
+          // The pill badge needs room for its own padding on top of the
+          // text, or the cell clips its rounded end instead of just
+          // showing the full word -- size the column for the longest
+          // option, not the generic 90px floor every other column uses.
+          const longestOption = Math.max(...col.options.map((opt) => opt.length));
           return {
             ...base,
+            minWidth: Math.max(base.minWidth as number, longestOption * 8 + 64),
             cellRenderer: ChoiceCell,
             cellRendererParams: { column: col },
             cellEditor: "agSelectCellEditor",
