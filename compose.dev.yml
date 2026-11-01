@@ -1,0 +1,56 @@
+# Local exploration stack for Handy Recorder: live-reload dev servers for
+# both frontend and backend, bind-mounted to this checkout.
+#
+# This is for editing the app's code, not for just running it. The
+# database lives at backend/handy_recorder.db on the host, tied to this
+# checkout; a fresh clone starts with an empty database. To just run the
+# app without developing it, use `compose.yml` instead (the data-handyman
+# stack), whose data persists independently of the checkout.
+#
+# SQLite is not a separate service: the database is a single file inside
+# the backend's bind-mounted volume, so it already persists across
+# container restarts without any extra service here.
+#
+# The backend initializes its schema itself on startup (see app/main.py),
+# so no manual init step is needed here.
+#
+# Run:    podman compose -f compose.dev.yml up --build
+# Stop:   podman compose -f compose.dev.yml down
+#
+# Known environment issue (not caused by this project): on some podman
+# setups, the commit/tag step of `podman build` (including the one
+# `podman compose up --build` runs internally) can be rejected by an
+# image-signing policy — "Source image rejected ... by policy" — even for
+# a brand-new, never-before-used tag. If that happens, build each image
+# directly first (`podman build -t handy-recorder-backend -f
+# Containerfile.dev .` / `-t handy-recorder-frontend -f
+# Containerfile.frontend-dev .`), which may hit the same error but often
+# still leaves a usable tagged image behind; then run `podman compose up`
+# WITHOUT `--build` so compose just runs the already-built images.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Containerfile.dev
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    ports:
+      - "8010:8000"
+    environment:
+      - DB_PATH=/app/handy_recorder.db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Containerfile.frontend-dev
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_DEV_PROXY_TARGET=http://backend:8000
+    depends_on:
+      - backend

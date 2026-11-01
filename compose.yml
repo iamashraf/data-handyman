@@ -1,49 +1,55 @@
-# Local exploration stack for Handy Recorder.
+# The data-handyman stack: run the whole app with one command.
 #
-# SQLite is not a separate service: the database is a single file inside
-# the backend's bind-mounted volume, so it already persists across
-# container restarts without any extra service here.
+# Two services (frontend, backend) started together under one project
+# name, so the data volume and container names stay fixed across
+# rebuilds and re-clones (the project name, not the folder name, decides
+# them, which is why `name:` below is pinned rather than left to default).
 #
-# The backend initializes its schema itself on startup (see app/main.py),
-# so no manual init step is needed here.
+# Only the frontend is reachable from outside the container network, on
+# 127.0.0.1 (this machine only) so the app isn't exposed on the network.
+# It proxies API calls to the backend itself; the backend has no
+# published port.
 #
-# Run:    podman compose up --build
-# Stop:   podman compose down
+# Start:   podman compose up -d --build
+# Stop:    podman compose down
+# Update:  re-run `podman compose up -d --build` after pulling new code
+#
+# Never run `podman compose down -v` — that deletes the data volume,
+# and with it every template and record.
 #
 # Known environment issue (not caused by this project): on some podman
 # setups, the commit/tag step of `podman build` (including the one
 # `podman compose up --build` runs internally) can be rejected by an
 # image-signing policy — "Source image rejected ... by policy" — even for
 # a brand-new, never-before-used tag. If that happens, build each image
-# directly first (`podman build -t handy-recorder-backend -f
-# Containerfile.dev .` / `-t handy-recorder-frontend -f
-# Containerfile.frontend-dev .`), which may hit the same error but often
-# still leaves a usable tagged image behind; then run `podman compose up`
-# WITHOUT `--build` so compose just runs the already-built images.
+# directly first (`podman build -t data-handyman-backend -f
+# Containerfile.backend .` / `-t data-handyman-frontend -f
+# Containerfile.frontend .`), which may hit the same error but often
+# still leaves a usable tagged image behind; then run `podman compose up
+# -d` WITHOUT `--build` so compose just runs the already-built images.
+
+name: data-handyman
 
 services:
   backend:
     build:
       context: .
-      dockerfile: Containerfile.dev
+      dockerfile: Containerfile.backend
     volumes:
-      - ./backend:/app
-    working_dir: /app
-    ports:
-      - "8010:8000"
+      - data-handyman-data:/data
     environment:
-      - DB_PATH=/app/handy_recorder.db
+      - DB_PATH=/data/handy_recorder.db
+    restart: unless-stopped
 
   frontend:
     build:
       context: .
-      dockerfile: Containerfile.frontend-dev
-    volumes:
-      - ./frontend:/app
-    working_dir: /app
+      dockerfile: Containerfile.frontend
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_DEV_PROXY_TARGET=http://backend:8000
+      - "127.0.0.1:8080:80"
     depends_on:
       - backend
+    restart: unless-stopped
+
+volumes:
+  data-handyman-data:
