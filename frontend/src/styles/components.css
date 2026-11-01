@@ -234,10 +234,21 @@ textarea.input {
 
 .dv-template-dropdown-button {
   width: var(--select-width, 220px);
-  text-align: left;
   justify-content: space-between;
   overflow: hidden;
+}
+
+.dv-template-dropdown-button-label {
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  min-width: 0;
+}
+
+.dv-template-dropdown-button-chevron {
+  flex: none;
+  margin-left: var(--space-2);
 }
 
 /* ---------- menus / dropdown panels ---------- */
@@ -629,4 +640,154 @@ textarea.input {
   color: var(--ink-muted);
   font-size: 12px;
   padding-right: var(--space-2);
+}
+
+/* ---------- empty state ---------- */
+
+.empty-state,
+.dv-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--ink-muted);
+  font-size: 15px;
+  text-align: center;
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  background: var(--surface);
+}
+
+.empty-state-actions,
+.dv-empty-state-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* ---------- top bar / page shell (Records, Templates, Summary all use this) ---------- */
+
+.page-shell,
+.dv-page {
+  /* For Records, .app-body (the flex region between the app header and
+     footer) gives this its real height; no viewport math needed here. */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  box-sizing: border-box;
+}
+
+.page-topbar,
+.dv-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.page-title-group,
+.dv-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.page-title-group h2,
+.dv-title-group h2 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page-title-group .meta,
+.dv-title-group .meta,
+.dv-row-count {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.page-topbar-right,
+.dv-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.page-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dv-new-button {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- template switcher dropdown (top-right, used by all three pages) ---------- */
+
+.dv-template-dropdown {
+  position: relative;
+  --select-width: 220px;
+}
+
+.dv-template-dropdown-panel {
+  top: calc(100% + var(--space-1));
+  right: 0;
+  left: auto;
+  /* Fixed, not min-width -- otherwise the open panel's width tracks
+     whichever template name is longest and visibly outgrows the
+     220px button anchored above it. Items that don't fit truncate with
+     an ellipsis instead. */
+  width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.dv-template-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-3);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.dv-template-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dv-template-dropdown-item:hover {
+  background: var(--paper-band);
+}
+
+.dv-template-dropdown-item[aria-selected="true"] {
+  font-weight: 600;
+  background: var(--paper-band);
+}
+
+.dv-template-dropdown-item > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.dv-template-dropdown-count {
+  flex: none;
+  color: var(--ink-muted);
+  font-size: 12px;
 }

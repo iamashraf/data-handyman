@@ -86,8 +86,16 @@ body {
   line-height: 1.55;
 }
 
+/* Browser buttons don't inherit text color from their parent by default
+   (their own UA stylesheet sets one), so any button-styling rule that
+   forgets to set `color` falls back to the browser's native button text
+   color -- opaque and often unreadable against a themed background,
+   especially in dark mode. Setting it once here, app-wide, means a
+   missing `color:` in some specific button rule degrades gracefully to
+   the current theme's ink color instead of to invisible/wrong text. */
 button {
   font-family: inherit;
+  color: var(--ink);
 }
 
 /* Plain HTML checkboxes (Columns menu, edit-in-form booleans) in the

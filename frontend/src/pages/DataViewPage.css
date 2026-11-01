@@ -6,96 +6,9 @@
  * a reusable widget.
  */
 
-.dv-page {
-  /* .app-body (the flex region between the app header and footer) gives
-     this its real height; no viewport math needed here. */
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-5) var(--space-5) var(--space-4);
-  box-sizing: border-box;
-}
-
-.dv-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.dv-title-group {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-.dv-title-group h2 {
-  font-family: var(--font-heading);
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.dv-row-count,
 .dv-row-count-chip {
   color: var(--ink-muted);
   font-size: 13px;
-}
-
-.dv-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.dv-template-dropdown {
-  position: relative;
-  --select-width: 220px;
-}
-
-.dv-template-dropdown-panel {
-  top: calc(100% + var(--space-1));
-  right: 0;
-  left: auto;
-  min-width: 220px;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.dv-template-dropdown-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: var(--space-3);
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--rule);
-  padding: var(--space-2) var(--space-3);
-  font-size: 14px;
-  color: var(--ink);
-  cursor: pointer;
-  text-align: left;
-}
-
-.dv-template-dropdown-item:last-child {
-  border-bottom: none;
-}
-
-.dv-template-dropdown-item:hover {
-  background: var(--paper-band);
-}
-
-.dv-template-dropdown-item[aria-selected="true"] {
-  font-weight: 600;
-  background: var(--paper-band);
-}
-
-.dv-template-dropdown-count {
-  color: var(--ink-muted);
-  font-size: 12px;
 }
 
 /* Toolbar: all controls same height/radius/font size (from .btn/.input
@@ -105,7 +18,22 @@
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
   flex-wrap: wrap;
+}
+
+/* A hairline divider between the "find things" group (search, filters)
+   and the "act on things" group (columns, data, add row), so the bar
+   reads as two clustered control groups instead of one flat row of
+   identical buttons. */
+.dv-toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--rule);
+  margin: 0 var(--space-1);
 }
 
 .dv-toolbar-spacer {
@@ -167,10 +95,6 @@
   font-weight: 600;
 }
 
-.dv-new-button {
-  color: var(--accent);
-  border-color: var(--accent);
-}
 
 .dv-columns-menu,
 .dv-data-menu {
@@ -262,21 +186,7 @@
 
 .dv-empty-state {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  color: var(--ink-muted);
-  font-size: 15px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.dv-empty-state-actions {
-  display: flex;
-  gap: var(--space-3);
+  border-style: solid;
 }
 
 .dv-empty-state-import {

@@ -260,8 +260,21 @@ export function SummaryViewPage({ templateId, columns }: SummaryViewPageProps) {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const latestSummaryRequest = useRef(0);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [dropdownOpen]);
 
   // The template on hand must match the currently selected template before
   // its columns are safe to show — otherwise, for a moment while a new
@@ -350,6 +363,7 @@ export function SummaryViewPage({ templateId, columns }: SummaryViewPageProps) {
     setSummaryParams(null);
     setSummaryError(null);
     setExportError(null);
+    setDropdownOpen(false);
   }
 
   async function handleExport() {
@@ -397,127 +411,143 @@ export function SummaryViewPage({ templateId, columns }: SummaryViewPageProps) {
   }));
 
   return (
-    <div className="sv-page">
-      <div className="sv-layout">
-        <aside className="sv-sidebar">
-          <h2>Templates</h2>
-          {templatesError ? <p className="sv-sidebar-error">{templatesError}</p> : null}
-          <ul className="sv-sidebar-list">
-            {templates.map((t) => (
-              <li key={t.id} className="sv-sidebar-item">
-                <button
-                  type="button"
-                  className="sv-sidebar-button"
-                  aria-current={selectedId === t.id ? "true" : undefined}
-                  onClick={() => handleSelect(t.id)}
-                >
-                  {t.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
-
-        <main className="sv-main">
-          <div className="sv-toolbar">
-            <h2>{template ? template.name : "Summary"}</h2>
-          </div>
-
-          {templateError ? <p className="sv-error">{templateError}</p> : null}
-
-          {selectedId == null ? (
-            <p className="sv-empty">Select a template to summarize its records.</p>
-          ) : !columnsReady ? (
-            <p className="sv-loading" role="status">
-              Loading…
-            </p>
-          ) : (
-            <>
-              <div className="sv-controls">
-                <label className="sv-field">
-                  <span>Group by</span>
-                  <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-                    <option value="">Choose a column…</option>
-                    {effectiveColumns.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="sv-field">
-                  <span>Metric (optional)</span>
-                  <select value={metric} onChange={(e) => setMetric(e.target.value)}>
-                    <option value="">None</option>
-                    {numberColumns.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="sv-toolbar-button"
-                  onClick={handleExport}
-                  disabled={!groupBy || exporting}
-                >
-                  {exporting ? "Exporting…" : "Export with summary"}
-                </button>
+    <div className="dv-page">
+      <div className="dv-topbar">
+        <div className="dv-title-group">
+          <h2>{template ? template.name : "Summary"}</h2>
+        </div>
+        <div className="dv-topbar-right">
+          <div className="dv-template-dropdown" ref={dropdownRef}>
+            <button
+              type="button"
+              className="dv-toolbar-button dv-template-dropdown-button"
+              onClick={() => setDropdownOpen((o) => !o)}
+              aria-expanded={dropdownOpen}
+              aria-haspopup="listbox"
+            >
+              <span className="dv-template-dropdown-button-label">{template ? template.name : "Select a template"}</span>
+              <span className="dv-template-dropdown-button-chevron" aria-hidden="true">▾</span>
+            </button>
+            {dropdownOpen ? (
+              <div className="dv-template-dropdown-panel" role="listbox">
+                {templates.map((t) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selectedId === t.id}
+                    key={t.id}
+                    className="dv-template-dropdown-item"
+                    onClick={() => handleSelect(t.id)}
+                  >
+                    <span>{t.name}</span>
+                  </button>
+                ))}
               </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
 
-              {exportError ? <p className="sv-error">{exportError}</p> : null}
-              {summaryError ? <p className="sv-error">{summaryError}</p> : null}
+      {templatesError ? <p className="dv-error">{templatesError}</p> : null}
+      {templateError ? <p className="dv-error">{templateError}</p> : null}
 
-              {!groupBy ? (
-                <p className="sv-empty">Pick a column to group by to see the summary.</p>
-              ) : !activeParams && summaryLoading ? (
-                <p className="sv-loading" role="status">
-                  Loading summary…
-                </p>
-              ) : !activeParams ? (
-                <p className="sv-empty">No records to summarize yet.</p>
-              ) : (
-                // A refetch (metric/group-by change) keeps this previous,
-                // correctly-labeled result on screen — dimmed, not blanked
-                // — instead of flashing to a loading state. activeParams
-                // (not the live groupBy/metric) names what's actually
-                // plotted below, so the title never gets ahead of the data.
-                <div className={summaryLoading ? "sv-results sv-stale" : "sv-results"} aria-busy={summaryLoading}>
-                  <div className="sv-charts">
-                    <BarChart title={`Count by ${activeParams.groupBy}`} data={countChartData} />
-                    {activeParams.metric ? (
-                      <BarChart title={`Total ${activeParams.metric} by ${activeParams.groupBy}`} data={sumChartData} />
-                    ) : null}
-                  </div>
+      <div className="sv-body">
+        {selectedId == null ? (
+          <p className="sv-empty">Select a template to summarize its records.</p>
+        ) : !columnsReady ? (
+          <p className="sv-loading" role="status">
+            Loading…
+          </p>
+        ) : (
+          <>
+            <div className="sv-controls">
+              <label className="sv-field">
+                <span>Group by</span>
+                <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+                  <option value="">Choose a column…</option>
+                  {effectiveColumns.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="sv-field">
+                <span>Metric (optional)</span>
+                <select value={metric} onChange={(e) => setMetric(e.target.value)}>
+                  <option value="">None</option>
+                  {numberColumns.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="dv-toolbar-button"
+                onClick={handleExport}
+                disabled={!groupBy || exporting}
+              >
+                {exporting ? "Exporting…" : "Export with summary"}
+              </button>
+            </div>
 
-                  <div className="sv-table-wrap">
-                    <table className="sv-table">
-                      <thead>
-                        <tr>
-                          <th>{activeParams.groupBy}</th>
-                          <th>Count</th>
-                          {activeParams.metric ? <th>Total {activeParams.metric}</th> : null}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {summary.map((row, i) => (
-                          <tr key={i}>
-                            <td>{formatGroupLabel(row.group_value)}</td>
-                            <td className="sv-numeric">{row.count}</td>
-                            {activeParams.metric ? (
-                              <td className="sv-numeric">{row.sum != null ? formatNumber(row.sum) : "—"}</td>
-                            ) : null}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+            {exportError ? <p className="dv-error">{exportError}</p> : null}
+            {summaryError ? <p className="dv-error">{summaryError}</p> : null}
+
+            {!groupBy ? (
+              <div className="empty-state">
+                <p>Pick a column to group by to see the summary.</p>
+              </div>
+            ) : !activeParams && summaryLoading ? (
+              <p className="sv-loading" role="status">
+                Loading summary…
+              </p>
+            ) : !activeParams ? (
+              <div className="empty-state">
+                <p>No records to summarize yet.</p>
+              </div>
+            ) : (
+              // A refetch (metric/group-by change) keeps this previous,
+              // correctly-labeled result on screen — dimmed, not blanked
+              // — instead of flashing to a loading state. activeParams
+              // (not the live groupBy/metric) names what's actually
+              // plotted below, so the title never gets ahead of the data.
+              <div className={summaryLoading ? "sv-results sv-stale" : "sv-results"} aria-busy={summaryLoading}>
+                <div className="sv-charts">
+                  <BarChart title={`Count by ${activeParams.groupBy}`} data={countChartData} />
+                  {activeParams.metric ? (
+                    <BarChart title={`Total ${activeParams.metric} by ${activeParams.groupBy}`} data={sumChartData} />
+                  ) : null}
                 </div>
-              )}
-            </>
-          )}
-        </main>
+
+                <div className="sv-table-wrap">
+                  <table className="sv-table">
+                    <thead>
+                      <tr>
+                        <th>{activeParams.groupBy}</th>
+                        <th>Count</th>
+                        {activeParams.metric ? <th>Total {activeParams.metric}</th> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.map((row, i) => (
+                        <tr key={i}>
+                          <td>{formatGroupLabel(row.group_value)}</td>
+                          <td className="sv-numeric">{row.count}</td>
+                          {activeParams.metric ? (
+                            <td className="sv-numeric">{row.sum != null ? formatNumber(row.sum) : "—"}</td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

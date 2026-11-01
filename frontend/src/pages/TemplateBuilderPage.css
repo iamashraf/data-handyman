@@ -1,52 +1,15 @@
 /*
- * Template builder page. Reuses the shared button/menu/dialog/ledger-
- * table/sidebar chrome from src/styles/components.css — only
- * page-specific layout lives here.
+ * Template builder page. Full-page layout with a top-right template
+ * switcher dropdown, same pattern as DataViewPage.css (.dv-page/
+ * .dv-topbar, shared via components.css). Only this page's own form
+ * layout lives here.
  */
 
-.tb-page {
-  min-height: 100vh;
-  padding: var(--space-6) var(--space-5);
-}
-
-.tb-layout {
-  display: flex;
-  gap: var(--space-5);
-  align-items: flex-start;
-  max-width: 920px;
-}
-
-.tb-sidebar {
-  flex: 0 0 200px;
-}
-
-.tb-sidebar h2 {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.tb-sidebar-error {
-  color: var(--warn);
-  font-size: 13px;
-}
-
-/* Main builder panel */
-.tb-main {
+.tb-body {
   flex: 1;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-}
-
-.tb-main h2 {
-  font-family: var(--font-heading);
-  font-size: 19px;
-  font-weight: 600;
-  margin: 0 0 var(--space-4) 0;
+  min-height: 0;
+  overflow-y: auto;
+  max-width: 760px;
 }
 
 .tb-field {
@@ -60,6 +23,10 @@
   font-weight: 600;
   color: var(--ink-muted);
   margin: 0 0 var(--space-2) 0;
+}
+
+.tb-empty-columns {
+  margin-bottom: var(--space-3);
 }
 
 /* The ruled ledger table: the one bold structural move on this page. Row
@@ -85,13 +52,6 @@
   font-size: 13px;
 }
 
-.tb-no-columns {
-  color: var(--ink-muted);
-  font-size: 14px;
-  padding: var(--space-3) var(--space-2);
-  text-align: left;
-}
-
 .tb-table input,
 .tb-table select {
   width: 100%;
@@ -112,19 +72,19 @@
   background: var(--paper);
 }
 
-.tb-error {
-  margin-top: var(--space-4);
-}
-
 .tb-status {
   margin-top: var(--space-4);
 }
 
 .tb-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-5);
+}
+
+.tb-actions-spacer {
+  flex: 1;
 }
 
 .tb-dialog p {
@@ -140,15 +100,4 @@
 
 .tb-dialog li {
   margin-bottom: var(--space-1);
-}
-
-@media (max-width: 640px) {
-  .tb-layout {
-    flex-direction: column;
-  }
-
-  .tb-sidebar {
-    flex: initial;
-    width: 100%;
-  }
 }

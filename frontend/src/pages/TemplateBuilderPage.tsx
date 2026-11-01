@@ -11,18 +11,6 @@ import {
 import type { TemplateColumn, TemplateRead, TemplateWarningResult } from "../api/types";
 import "./TemplateBuilderPage.css";
 
-/*
- * Design direction (frontend-design skill): a modernized accounting-ledger
- * register — sage "greenbar" paper, ruled rows, a forest-green accent for
- * everyday actions and a rust accent reserved for the destructive-confirm
- * dialog only — rather than a generic SaaS or marketing-page look. The
- * ruled "Columns" table with its row-index gutter is the page's one bold
- * structural move; column order is a real sequence in the data model, so
- * numbering it is earned, not decorative. Full plan/critique in the task
- * report. Tokens live in src/styles/tokens.css; page layout in this file's
- * sibling .css.
- */
-
 interface TemplateBuilderPageProps {
   templateId?: number;
 }
@@ -84,13 +72,15 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
   const [columns, setColumns] = useState<ColumnDraft[]>([]);
   const [warning, setWarning] = useState<TemplateWarningResult | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const saveButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const wasWarningOpen = useRef(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     listTemplates()
@@ -130,6 +120,17 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     }
   }, [warning]);
 
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [dropdownOpen]);
+
   function clearStatus() {
     setStatusMessage(null);
   }
@@ -138,6 +139,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     setSelectedId(id);
     setWarning(null);
     setSaveError(null);
+    setDropdownOpen(false);
     clearStatus();
   }
 
@@ -145,10 +147,14 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     setSelectedId(undefined);
     setWarning(null);
     setSaveError(null);
+    setDropdownOpen(false);
     clearStatus();
   }
 
-  async function handleDelete(id: number, templateName: string) {
+  async function handleDelete() {
+    if (selectedId == null) return;
+    const current = templates.find((t) => t.id === selectedId);
+    const templateName = current?.name ?? name;
     // Deleting a template also deletes all of its records (no undo) --
     // confirm before doing something this permanent.
     const confirmed = window.confirm(
@@ -157,20 +163,18 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     if (!confirmed) {
       return;
     }
-    setDeletingId(id);
+    setDeleting(true);
     setSaveError(null);
     try {
-      await deleteTemplate(id);
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
-      if (selectedId === id) {
-        handleNew();
-      }
+      await deleteTemplate(selectedId);
+      setTemplates((prev) => prev.filter((t) => t.id !== selectedId));
+      handleNew();
     } catch (error) {
       setSaveError(
         error instanceof ApiError ? describeApiError(error) : "Couldn't delete this template. Check your connection and try again."
       );
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   }
 
@@ -242,78 +246,99 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
   }
 
   const recordWord = (count: number) => (count === 1 ? "record" : "records");
+  const columnWord = (count: number) => (count === 1 ? "column" : "columns");
+  const selectedTemplate = templates.find((t) => t.id === selectedId);
 
   return (
-    <div className="tb-page">
-      <div className="tb-layout">
-        <aside className="tb-sidebar">
-          <h2>Templates</h2>
-          {templatesError ? <p className="tb-sidebar-error">{templatesError}</p> : null}
-          <ul className="tb-sidebar-list">
-            {templates.map((t) => (
-              <li key={t.id} className="tb-sidebar-item tb-sidebar-item-row">
-                <button
-                  type="button"
-                  className="tb-sidebar-button"
-                  aria-current={selectedId === t.id ? "true" : undefined}
-                  onClick={() => handleSelect(t.id)}
-                >
-                  {t.name}
-                </button>
-                <button
-                  type="button"
-                  className="tb-sidebar-delete"
-                  aria-label={`Delete template ${t.name}`}
-                  onClick={() => handleDelete(t.id, t.name)}
-                  disabled={deletingId === t.id}
-                >
-                  {deletingId === t.id ? "…" : "Delete"}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button type="button" className="tb-sidebar-new" onClick={handleNew}>
-            + New template
+    <div className="dv-page">
+      <div className="dv-topbar">
+        <div className="dv-title-group">
+          <h2>{selectedId == null ? "New template" : selectedTemplate?.name ?? "Edit template"}</h2>
+          {selectedId != null ? <span className="dv-row-count">· {columns.length} {columnWord(columns.length)}</span> : null}
+        </div>
+        <div className="dv-topbar-right">
+          <div className="dv-template-dropdown" ref={dropdownRef}>
+            <button
+              type="button"
+              className="dv-toolbar-button dv-template-dropdown-button"
+              onClick={() => setDropdownOpen((o) => !o)}
+              aria-expanded={dropdownOpen}
+              aria-haspopup="listbox"
+            >
+              <span className="dv-template-dropdown-button-label">
+                {selectedTemplate ? selectedTemplate.name : "Select a template"}
+              </span>
+              <span className="dv-template-dropdown-button-chevron" aria-hidden="true">▾</span>
+            </button>
+            {dropdownOpen ? (
+              <div className="dv-template-dropdown-panel" role="listbox">
+                {templates.map((t) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selectedId === t.id}
+                    key={t.id}
+                    className="dv-template-dropdown-item"
+                    onClick={() => handleSelect(t.id)}
+                  >
+                    <span>{t.name}</span>
+                    <span className="dv-template-dropdown-count">
+                      {t.columns.length} {columnWord(t.columns.length)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <button type="button" className="dv-toolbar-button dv-new-button" onClick={handleNew}>
+            + New
           </button>
-        </aside>
+        </div>
+      </div>
 
-        <main className="tb-main">
-          <h2>{selectedId == null ? "New template" : "Edit template"}</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="tb-field">
-              <label htmlFor="template-name">Template name</label>
-              <input
-                id="template-name"
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  clearStatus();
-                }}
-              />
+      {templatesError ? <p className="dv-error">{templatesError}</p> : null}
+
+      <div className="tb-body">
+        <form onSubmit={handleSubmit}>
+          <div className="tb-field">
+            <label htmlFor="template-name">Template name</label>
+            <input
+              id="template-name"
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                clearStatus();
+              }}
+            />
+          </div>
+
+          <h3 className="tb-columns-heading">Columns</h3>
+
+          {columns.length === 0 ? (
+            <div className="empty-state tb-empty-columns">
+              <p>No columns yet</p>
+              <div className="empty-state-actions">
+                <button type="button" className="btn btn-primary" onClick={addColumn}>
+                  + Add column
+                </button>
+              </div>
             </div>
-
-            <h3 className="tb-columns-heading">Columns</h3>
-            <div className="tb-table-wrap">
-              <table className="tb-table">
-                <thead>
-                  <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Column name</th>
-                    <th scope="col">Type</th>
-                    <th scope="col">Formula (optional)</th>
-                    <th scope="col">Remove</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {columns.length === 0 ? (
+          ) : (
+            <>
+              <div className="tb-table-wrap">
+                <table className="tb-table">
+                  <thead>
                     <tr>
-                      <td colSpan={5} className="tb-no-columns">
-                        No columns yet. Add the first one below.
-                      </td>
+                      <th scope="col">#</th>
+                      <th scope="col">Column name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Formula (optional)</th>
+                      <th scope="col">Remove</th>
                     </tr>
-                  ) : (
-                    columns.map((col, index) => (
+                  </thead>
+                  <tbody>
+                    {columns.map((col, index) => (
                       <tr key={index}>
                         <td className="tb-row-index">{index + 1}</td>
                         <td>
@@ -358,29 +383,35 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <button type="button" className="tb-add-column" onClick={addColumn}>
-              + Add column
-            </button>
-
-            {statusMessage ? (
-              <p role="status" className="tb-status">
-                {statusMessage}
-              </p>
-            ) : null}
-            {saveError ? <p className="tb-error">{saveError}</p> : null}
-
-            <div className="tb-actions">
-              <button type="submit" className="tb-save" ref={saveButtonRef} disabled={saving}>
-                {saving ? "Saving…" : "Save changes"}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" className="tb-add-column" onClick={addColumn}>
+                + Add column
               </button>
-            </div>
-          </form>
-        </main>
+            </>
+          )}
+
+          {statusMessage ? (
+            <p role="status" className="tb-status">
+              {statusMessage}
+            </p>
+          ) : null}
+          {saveError ? <p className="dv-error">{saveError}</p> : null}
+
+          <div className="tb-actions">
+            {selectedId != null ? (
+              <button type="button" className="btn btn-danger-outline" onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Deleting…" : "Delete template"}
+              </button>
+            ) : null}
+            <div className="tb-actions-spacer" />
+            <button type="submit" className="tb-save" ref={saveButtonRef} disabled={saving}>
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </form>
       </div>
 
       {warning ? (

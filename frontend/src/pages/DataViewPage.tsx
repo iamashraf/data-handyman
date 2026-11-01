@@ -976,7 +976,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
               aria-expanded={templateDropdownOpen}
               aria-haspopup="listbox"
             >
-              {template ? template.name : "Select a template"} ▾
+              <span className="dv-template-dropdown-button-label">{template ? template.name : "Select a template"}</span>
+              <span className="dv-template-dropdown-button-chevron" aria-hidden="true">▾</span>
             </button>
             {templateDropdownOpen ? (
               <div className="dv-template-dropdown-panel" role="listbox">
@@ -1038,6 +1039,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         ) : null}
 
         <div className="dv-toolbar-spacer" />
+
+        {selectedRowIds.length === 0 ? <div className="dv-toolbar-divider" aria-hidden="true" /> : null}
 
         {selectedRowIds.length > 0 ? (
           <div className="dv-bulk-bar">

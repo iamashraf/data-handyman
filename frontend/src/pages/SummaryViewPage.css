@@ -1,57 +1,14 @@
 /*
- * Summary view page — third page in the greenbar-ledger system. Reuses
- * src/styles/tokens.css and the shared chrome from
- * src/styles/components.css (buttons, fields, sidebar list, ledger
- * table) — only page-specific layout and the chart SVG live here.
+ * Summary view page. Full-page layout with the same top-right template
+ * switcher dropdown as Records/Templates (.dv-page/.dv-topbar, shared
+ * via components.css) — only this page's own controls/chart SVG live
+ * here.
  */
 
-.sv-page {
-  min-height: 100vh;
-  padding: var(--space-6) var(--space-5);
-}
-
-.sv-layout {
-  display: flex;
-  gap: var(--space-5);
-  align-items: flex-start;
-  max-width: 1100px;
-}
-
-.sv-sidebar {
-  flex: 0 0 200px;
-}
-
-.sv-sidebar h2 {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.sv-sidebar-error {
-  color: var(--warn);
-  font-size: 13px;
-}
-
-.sv-main {
+.sv-body {
   flex: 1;
-  min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-}
-
-.sv-toolbar {
-  margin-bottom: var(--space-4);
-}
-
-.sv-toolbar h2 {
-  font-family: var(--font-heading);
-  font-size: 19px;
-  font-weight: 600;
-  margin: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Group-by / metric pickers + export action — same field/button
@@ -155,13 +112,3 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 640px) {
-  .sv-layout {
-    flex-direction: column;
-  }
-
-  .sv-sidebar {
-    flex: initial;
-    width: 100%;
-  }
-}
