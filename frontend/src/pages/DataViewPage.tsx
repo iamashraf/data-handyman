@@ -184,6 +184,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importInputKey, setImportInputKey] = useState(0);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [creatingFromExcel, setCreatingFromExcel] = useState(false);
   const [createFromExcelError, setCreateFromExcelError] = useState<string | null>(null);
@@ -191,6 +193,23 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
 
   const latestRequest = useRef(0);
   const loadedTemplateId = useRef<number | undefined>(undefined);
+  const columnsMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the "Columns" visibility menu on an outside click, like any
+  // normal dropdown — without this it would stay open until another
+  // button happened to toggle it shut.
+  useEffect(() => {
+    if (!columnsMenuOpen) {
+      return;
+    }
+    function handleOutsideClick(event: MouseEvent) {
+      if (columnsMenuRef.current && !columnsMenuRef.current.contains(event.target as Node)) {
+        setColumnsMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [columnsMenuOpen]);
 
   useEffect(() => {
     listTemplates()
@@ -265,7 +284,9 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     if (!template) {
       return [];
     }
-    const dataColumns: ColDef[] = template.columns.map((col) => ({
+    const dataColumns: ColDef[] = template.columns
+      .filter((col) => !hiddenColumns.has(col.name))
+      .map((col) => ({
       field: col.name,
       headerName: col.name,
       flex: 1,
@@ -306,7 +327,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       cellRendererParams: { onDelete: handleDeleteRow, firstEditableField },
     };
     return [...dataColumns, actionsColumn];
-  }, [template]);
+  }, [template, hiddenColumns]);
 
   const defaultColDef = useMemo<ColDef>(() => ({ cellRenderer: ValueCell }), []);
 
@@ -325,6 +346,20 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     setExportError(null);
     setImportError(null);
     setImportResult(null);
+    setHiddenColumns(new Set());
+    setColumnsMenuOpen(false);
+  }
+
+  function toggleColumnVisibility(fieldName: string) {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(fieldName)) {
+        next.delete(fieldName);
+      } else {
+        next.add(fieldName);
+      }
+      return next;
+    });
   }
 
   /** Commits one edited cell: PUTs the row's whole data, since the
@@ -553,6 +588,32 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
             <button type="button" className="dv-add-row" onClick={handleAddRow} disabled={selectedId == null}>
               + Add row
             </button>
+            {template && template.columns.length > 0 ? (
+              <div className="dv-columns-menu" ref={columnsMenuRef}>
+                <button
+                  type="button"
+                  className="dv-toolbar-button"
+                  onClick={() => setColumnsMenuOpen((open) => !open)}
+                  aria-expanded={columnsMenuOpen}
+                >
+                  Columns{hiddenColumns.size > 0 ? ` (${hiddenColumns.size} hidden)` : ""}
+                </button>
+                {columnsMenuOpen ? (
+                  <div className="dv-columns-panel" role="menu">
+                    {template.columns.map((col) => (
+                      <label key={col.name} className="dv-columns-panel-item">
+                        <input
+                          type="checkbox"
+                          checked={!hiddenColumns.has(col.name)}
+                          onChange={() => toggleColumnVisibility(col.name)}
+                        />
+                        {col.name}
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <button
               type="button"
               className="dv-toolbar-button"

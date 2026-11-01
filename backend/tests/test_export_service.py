@@ -98,10 +98,14 @@ def test_export_include_summary_with_zero_records_has_no_chart():
         template, records=[], include_summary=True, group_by="status"
     )
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
-    summary_sheet = wb["Summary"]
-    assert [c.value for c in summary_sheet[1]] == ["group_value", "count", "sum"]
-    assert summary_sheet.max_row == 1
-    assert len(summary_sheet._charts) == 0
+    data_sheet = wb["Data"]
+    summary_col = len(template.columns) + 2
+    assert data_sheet.cell(row=1, column=summary_col).value == "Summary"
+    assert [
+        data_sheet.cell(row=2, column=summary_col + i).value for i in range(3)
+    ] == ["group_value", "count", "sum"]
+    assert data_sheet.cell(row=3, column=summary_col).value is None
+    assert len(data_sheet._charts) == 0
 
 
 def test_export_include_summary_without_group_by_raises_value_error():
@@ -110,7 +114,7 @@ def test_export_include_summary_without_group_by_raises_value_error():
         export_template_to_xlsx(template, records=[], include_summary=True)
 
 
-def test_export_include_summary_adds_summary_sheet_with_chart():
+def test_export_include_summary_adds_summary_section_with_chart():
     template = _template(
         [
             TemplateColumn(name="status", type="text", formula=None),
@@ -130,14 +134,24 @@ def test_export_include_summary_adds_summary_sheet_with_chart():
         metric="amount",
     )
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
-    assert "Summary" in wb.sheetnames
-    summary_sheet = wb["Summary"]
-    assert [c.value for c in summary_sheet[1]] == ["group_value", "count", "sum"]
+    # The summary is a section on the same "Data" sheet -- not a separate
+    # tab -- so it's visible as soon as the file opens.
+    assert wb.sheetnames == ["Data"]
+    data_sheet = wb["Data"]
+    summary_col = len(template.columns) + 2
+    assert data_sheet.cell(row=1, column=summary_col).value == "Summary"
+    assert [
+        data_sheet.cell(row=2, column=summary_col + i).value for i in range(3)
+    ] == ["group_value", "count", "sum"]
     values = {
-        row[0].value: (row[1].value, row[2].value)
-        for row in summary_sheet.iter_rows(min_row=2)
+        data_sheet.cell(row=r, column=summary_col).value: (
+            data_sheet.cell(row=r, column=summary_col + 1).value,
+            data_sheet.cell(row=r, column=summary_col + 2).value,
+        )
+        for r in range(3, data_sheet.max_row + 1)
+        if data_sheet.cell(row=r, column=summary_col).value is not None
     }
     assert values["Open"] == (2, 5.0)
     assert values["Closed"] == (1, 5.0)
-    # A native bar chart was added to the Summary sheet.
-    assert len(summary_sheet._charts) == 1
+    # A native bar chart was added to the Data sheet, next to the section.
+    assert len(data_sheet._charts) == 1

@@ -13,6 +13,7 @@ from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from app.models.record import RecordRead
@@ -52,6 +53,14 @@ def _append_row_as_text(sheet: Worksheet, values: list[Any]) -> None:
             cell.data_type = "s"
 
 
+def _set_cell_as_text_if_formula_like(sheet: Worksheet, row: int, column: int, value: Any) -> None:
+    """Same `=`-leading-string guard as `_append_row_as_text`, for a cell
+    written by row/column position rather than by appending a whole row."""
+    cell = sheet.cell(row=row, column=column, value=value)
+    if isinstance(value, str) and value.startswith("="):
+        cell.data_type = "s"
+
+
 def export_template_to_xlsx(
     template: TemplateRead,
     records: list[RecordRead],
@@ -75,28 +84,39 @@ def export_template_to_xlsx(
         _append_row_as_text(data_sheet, row_values)
 
     if include_summary:
+        # Placed as a section on the same "Data" sheet -- a couple of
+        # blank columns to the right of the data table -- rather than a
+        # separate sheet tab, so it's immediately visible when the file
+        # opens instead of something you have to notice a second tab to
+        # find.
         summary_rows = compute_summary(records, group_by, metric)
-        summary_sheet = wb.create_sheet("Summary")
-        summary_sheet.append(["group_value", "count", "sum"])
-        for row in summary_rows:
-            _append_row_as_text(
-                summary_sheet,
-                [_to_excel_safe(row.group_value), row.count, row.sum],
-            )
+        summary_col = len(template.columns) + 2
+
+        _set_cell_as_text_if_formula_like(data_sheet, 1, summary_col, "Summary")
+        header_row = 2
+        for offset, header in enumerate(("group_value", "count", "sum")):
+            _set_cell_as_text_if_formula_like(data_sheet, header_row, summary_col + offset, header)
+        for i, row in enumerate(summary_rows):
+            r = header_row + 1 + i
+            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col, _to_excel_safe(row.group_value))
+            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col + 1, row.count)
+            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col + 2, row.sum)
 
         if summary_rows:
+            last_row = header_row + len(summary_rows)
             chart = BarChart()
             chart.title = "Summary"
-            last_row = summary_sheet.max_row
             data_ref = Reference(
-                summary_sheet, min_col=2, max_col=2, min_row=1, max_row=last_row
+                data_sheet, min_col=summary_col + 1, max_col=summary_col + 1,
+                min_row=header_row, max_row=last_row,
             )
             categories_ref = Reference(
-                summary_sheet, min_col=1, min_row=2, max_row=last_row
+                data_sheet, min_col=summary_col, min_row=header_row + 1, max_row=last_row
             )
             chart.add_data(data_ref, titles_from_data=True)
             chart.set_categories(categories_ref)
-            summary_sheet.add_chart(chart, "E2")
+            anchor_col_letter = get_column_letter(summary_col)
+            data_sheet.add_chart(chart, f"{anchor_col_letter}{last_row + 3}")
 
     buffer = io.BytesIO()
     wb.save(buffer)

@@ -227,6 +227,45 @@
   cursor: default;
 }
 
+/* "Columns" visibility menu — lets any subset of columns show in the
+   grid, which is the real fix for a template with more columns than
+   comfortably fit on screen at once (horizontal scroll alone doesn't
+   scale past a certain point). */
+.dv-columns-menu {
+  position: relative;
+}
+
+.dv-columns-panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 10;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  min-width: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(32, 43, 35, 0.15);
+}
+
+.dv-columns-panel-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dv-columns-panel-item:hover {
+  background: var(--paper-band);
+  border-radius: 4px;
+}
+
 /* The Import button is a styled <label> wrapping a native file input —
    the input itself is visually hidden but still keyboard- and
    screen-reader-accessible (clicking/activating the label opens the file
