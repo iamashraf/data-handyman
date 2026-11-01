@@ -398,7 +398,6 @@ export function SummaryViewPage({ templateId, columns }: SummaryViewPageProps) {
 
   return (
     <div className="sv-page">
-      <h1 className="sv-header">Data Handyman</h1>
       <div className="sv-layout">
         <aside className="sv-sidebar">
           <h2>Templates</h2>

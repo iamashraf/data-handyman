@@ -570,7 +570,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
 
   return (
     <div className="dv-page">
-      <h1 className="dv-header">Data Handyman</h1>
       <div className="dv-layout">
         <aside className="dv-sidebar">
           <h2>View records for</h2>
@@ -760,7 +759,18 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
             aria-modal="true"
             aria-labelledby="dv-edit-title"
           >
-            <h2 id="dv-edit-title">{editModalMode === "create" ? "Add row" : "Edit row"}</h2>
+            <div className="dv-dialog-header">
+              <h2 id="dv-edit-title">{editModalMode === "create" ? "Add row" : "Edit row"}</h2>
+              <button
+                type="button"
+                className="dv-close-edit"
+                onClick={handleCloseEdit}
+                disabled={savingEdit}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
             <div className="dv-edit-fields">
               {template.columns
                 .filter((col) => col.formula == null)
@@ -782,11 +792,16 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                         }
                       />
                     ) : col.type === "date" ? (
-                      <input
-                        type="date"
-                        value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
-                        onChange={(e) => handleEditFieldChange(col.name, e.target.value || null)}
-                      />
+                      <>
+                        <input
+                          type="date"
+                          value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
+                          onChange={(e) => handleEditFieldChange(col.name, e.target.value || null)}
+                        />
+                        <span className="dv-field-hint">
+                          Click the month, day, or year and type — no need to open the calendar.
+                        </span>
+                      </>
                     ) : (
                       <input
                         type="text"

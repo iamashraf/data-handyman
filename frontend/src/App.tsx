@@ -11,6 +11,9 @@ export function App() {
 
   return (
     <div>
+      <header className="app-header">
+        <h1 className="app-title">Data Handyman</h1>
+      </header>
       <nav className="app-nav">
         <button
           type="button"

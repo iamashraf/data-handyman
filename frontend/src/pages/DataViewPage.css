@@ -12,14 +12,6 @@
   padding: var(--space-6) var(--space-5);
 }
 
-.dv-header {
-  margin: 0 0 var(--space-5) 0;
-  font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 26px;
-  letter-spacing: 0.01em;
-}
-
 .dv-layout {
   display: flex;
   gap: var(--space-5);
@@ -118,6 +110,11 @@
 
 .dv-field input[type="text"]:focus-visible {
   background: var(--surface);
+}
+
+.dv-field-hint {
+  font-size: 12px;
+  color: var(--ink-muted);
 }
 
 .dv-create-from-excel-button {
@@ -448,17 +445,38 @@
   background: var(--surface);
   border-radius: var(--radius);
   padding: var(--space-5);
-  max-width: 480px;
+  max-width: 640px;
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 8px 24px rgba(32, 43, 35, 0.25);
 }
 
-.dv-dialog h2 {
+.dv-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.dv-dialog-header h2 {
   font-family: var(--font-heading);
   font-size: 18px;
   margin: 0 0 var(--space-3) 0;
+}
+
+.dv-close-edit {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 0 var(--space-3) 0;
+  cursor: pointer;
+}
+
+.dv-close-edit:hover {
+  color: var(--ink);
 }
 
 .dv-edit-fields {
