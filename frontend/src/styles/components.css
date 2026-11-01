@@ -218,6 +218,24 @@ textarea.input {
   padding: var(--space-2) var(--space-3);
 }
 
+.dv-field textarea,
+.dv-edit-fields textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.dv-field textarea:focus-visible,
+.dv-edit-fields textarea:focus-visible {
+  background: var(--surface);
+}
+
 /* A <select>'s intrinsic width otherwise tracks whichever option text is
    currently selected (and in some engines, the widest option in the
    list), so the control visibly grows/shrinks as the value changes.

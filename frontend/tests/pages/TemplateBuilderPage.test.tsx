@@ -126,6 +126,7 @@ describe("TemplateBuilderPage", () => {
 
   it("lists existing templates so the user can pick one to edit", async () => {
     render(<TemplateBuilderPage />);
-    expect(await screen.findByRole("button", { name: /^T$/ })).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: /select a template/i }));
+    expect(await screen.findByRole("option", { name: /^T/ })).toBeInTheDocument();
   });
 });

@@ -1,12 +1,13 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { AgGridReact } from "ag-grid-react";
+import { AgGridReact, useGridCellEditor } from "ag-grid-react";
+import type { CustomCellEditorProps } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from "ag-grid-community";
 import type {
+  CellEditingStoppedEvent,
   CellValueChangedEvent,
   ColDef,
-  ICellEditorParams,
   ICellRendererParams,
 } from "ag-grid-community";
 import {
@@ -175,46 +176,43 @@ function ChoiceCell(params: ICellRendererParams & { column?: TemplateColumn }) {
 
 /* ---------- cell editors ---------- */
 
-const DateCellEditor = forwardRef(function DateCellEditor(
-  props: ICellEditorParams,
-  ref
-) {
-  const valueRef = useRef<string | null>(props.value ?? null);
-  const [, forceRender] = useState(0);
-  useImperativeHandle(ref, () => ({
-    getValue: () => valueRef.current,
-  }));
+// ag-grid-react 36's custom cell editors are controlled via the
+// `value`/`onValueChange` props (CustomCellEditorProps), not the older
+// forwardRef + useImperativeHandle().getValue() pattern -- that older
+// pattern is silently never invoked by this version, so a component
+// built that way never reports its typed value back to the grid at all.
+function DateCellEditor(props: CustomCellEditorProps) {
   return (
     <div className="dv-date-cell-editor">
       <DateInput
-        value={valueRef.current}
+        value={(props.value as string | null) ?? null}
         autoFocus
-        onChange={(iso) => {
-          valueRef.current = iso;
-          forceRender((n) => n + 1);
-        }}
+        onChange={(iso) => props.onValueChange(iso)}
         onCommit={() => props.api.stopEditing()}
       />
     </div>
   );
-});
+}
 
-const NumberCellEditor = forwardRef(function NumberCellEditor(props: ICellEditorParams, ref) {
+function NumberCellEditor(props: CustomCellEditorProps) {
   const [text, setText] = useState(props.value == null ? "" : String(props.value));
-  useImperativeHandle(ref, () => ({
-    getValue: () => (text.trim() === "" ? null : Number(text)),
+  useGridCellEditor({
     isCancelAfterEnd: () => text.trim() !== "" && Number.isNaN(Number(text)),
-  }));
+  });
   return (
     <input
       className="dv-number-cell-editor"
       type="number"
       autoFocus
       value={text}
-      onChange={(e) => setText(e.target.value)}
+      onChange={(e) => {
+        const next = e.target.value;
+        setText(next);
+        props.onValueChange(next.trim() === "" ? null : Number(next));
+      }}
     />
   );
-});
+}
 
 /* ---------- row actions menu ---------- */
 
@@ -349,6 +347,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const gridApiRef = useRef<import("ag-grid-community").GridApi | null>(null);
   const selectedIdRef = useRef<number | undefined>(selectedId);
   selectedIdRef.current = selectedId;
+  const recordsRef = useRef<RecordRead[]>(records);
+  recordsRef.current = records;
   const latestRequest = useRef(0);
   const loadedTemplateId = useRef<number | undefined>(undefined);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
@@ -504,7 +504,12 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   async function finalizeOrDiscardTempRow() {
     const api = gridApiRef.current;
     if (!api || api.getEditingCells().length > 0 || !template) return;
-    const tempRecord = records.find((r) => isTempRowId(r.id));
+    // Reads the ref, not the `records` state this closure was created
+    // with -- this runs from a cellEditingStopped event fired on the same
+    // row whose own cellValueChanged already updated `records`, and a
+    // plain closure over `records` here would still see the pre-edit
+    // snapshot from that earlier render.
+    const tempRecord = recordsRef.current.find((r) => isTempRowId(r.id));
     if (!tempRecord) return;
     const hasAnyValue = template.columns
       .filter((c) => c.formula == null)
@@ -530,12 +535,18 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     const recordId = event.data.id;
     if (isTempRowId(recordId)) {
       // Held locally in `records` state until the editing session on this
-      // row ends (see finalizeOrDiscardTempRow) -- update that local copy
-      // so the grid shows the typed value immediately.
-      setRecords((prev) =>
-        prev.map((r) => (r.id === recordId ? { ...r, data: { ...r.data, [event.colDef.field!]: event.newValue } } : r))
+      // row ends -- see finalizeOrDiscardTempRow, triggered by
+      // onCellEditingStopped (handleCellEditingStopped below), which fires
+      // synchronously right after this, in the same tick, before React
+      // has re-rendered. recordsRef is updated here directly (not just
+      // via setRecords, which only lands in the ref on the next render)
+      // so that finalize sees this edit immediately instead of one edit
+      // behind.
+      const updated = recordsRef.current.map((r) =>
+        r.id === recordId ? { ...r, data: { ...r.data, [event.colDef.field!]: event.newValue } } : r
       );
-      window.setTimeout(finalizeOrDiscardTempRow, 0);
+      recordsRef.current = updated;
+      setRecords(updated);
       return;
     }
     const record = records.find((r) => r.id === recordId);
@@ -551,6 +562,11 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       setRecords((prev) => prev.map((r) => (r.id === recordId ? { ...r, data: { ...r.data, [field]: previousValue } } : r)));
       showToast(error instanceof ApiError ? describeApiError(error) : "Couldn't save your change. Check your connection and try again.");
     }
+  }
+
+  function handleCellEditingStopped(event: CellEditingStoppedEvent) {
+    if (!isTempRowId(event.data.id)) return;
+    void finalizeOrDiscardTempRow();
   }
 
   const columnDefs = useMemo<ColDef[]>(() => {
@@ -632,6 +648,9 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         return {
           ...base,
           cellRenderer: TextCell,
+          cellEditor: "agLargeTextCellEditor",
+          cellEditorPopup: true,
+          cellEditorParams: { rows: 6, cols: 50 },
           filter: "agTextColumnFilter",
           tooltipField: col.name,
         };
@@ -1222,6 +1241,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
               onModelUpdated={() => refreshCounters()}
               onSelectionChanged={(event) => setSelectedRowIds(event.api.getSelectedRows().map((r) => r.id))}
               onCellValueChanged={handleCellValueChanged}
+              onCellEditingStopped={handleCellEditingStopped}
               onColumnMoved={persistColumnState}
               onColumnResized={(e) => { if (e.finished) persistColumnState(); }}
               onColumnVisible={persistColumnState}
@@ -1285,8 +1305,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                         ))}
                       </select>
                     ) : (
-                      <input
-                        type="text"
+                      <textarea
+                        rows={3}
                         value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
                         onChange={(e) => handleEditFieldChange(col.name, e.target.value)}
                       />

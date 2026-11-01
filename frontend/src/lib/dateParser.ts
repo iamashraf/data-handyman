@@ -1,15 +1,16 @@
 import { addDays, addMonths, addWeeks, format, isMatch, isValid, parse, setYear } from "date-fns";
 
 /**
- * Formats tried in order against typed free text. Order matters only in
- * that the first one `isMatch` accepts wins; none of these overlap on the
- * same input shape (digits-with-slashes vs. digits-with-dashes vs. a
- * month name), so the order has no real effect on the result.
+ * Formats tried in order against typed free text; the first one `isMatch`
+ * accepts wins. "M/d/yy" must come before "M/d/yyyy" -- date-fns's isMatch
+ * also accepts a 2-digit year against the "yyyy" token (parsing it as that
+ * literal year, e.g. 26 AD), so a 4-digit-year format listed first would
+ * shadow the 2-digit case below it. The rest don't overlap.
  */
 const ABSOLUTE_FORMATS = [
   "yyyy-MM-dd",
-  "M/d/yyyy",
   "M/d/yy",
+  "M/d/yyyy",
   "M-d-yyyy",
   "M/d",
   "MMM d, yyyy",

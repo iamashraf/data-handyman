@@ -1,3 +1,9 @@
+// NOTE (2026-11-01): this suite had drifted badly out of sync with the UI
+// (row actions moved behind a "..." menu, search became client-side,
+// Add Row became inline-grid editing instead of a modal, a pinned summary
+// row was added) -- these tests had not been kept up to date with those
+// changes. Most were repaired to match current behavior; treat this file
+// with suspicion until it's been run regularly again, not as settled truth.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -57,13 +63,13 @@ describe("DataViewPage", () => {
       { id: 1, template_id: 1, data: { a: 1, b: 0 }, computed: { ratio: "#VALUE!" }, created_at: "", updated_at: "" },
     ]);
     render(<DataViewPage templateId={1} />);
-    expect(await screen.findByText("#VALUE!")).toHaveAttribute("data-error", "true");
+    expect(await screen.findByText("#VALUE!")).toHaveClass("dv-cell-error");
   });
 
   it("shows a loading state while records are being fetched", () => {
     vi.mocked(listRecords).mockReturnValue(new Promise(() => {})); // never resolves
     render(<DataViewPage templateId={1} />);
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /loading records/i })).toBeInTheDocument();
   });
 
   it("does not mark a normal numeric value as an error", async () => {
@@ -71,30 +77,32 @@ describe("DataViewPage", () => {
       { id: 1, template_id: 1, data: { a: 10, b: 5 }, computed: { ratio: 2 }, created_at: "", updated_at: "" },
     ]);
     render(<DataViewPage templateId={1} />);
-    const cell = await screen.findByText("2");
-    expect(cell).not.toHaveAttribute("data-error", "true");
+    // "2" appears both as the row's own ratio cell and (with a single row) as
+    // the pinned summary row's total for that column -- neither is an error.
+    const cells = await screen.findAllByText("2");
+    expect(cells.length).toBeGreaterThan(0);
+    cells.forEach((cell) => expect(cell).not.toHaveClass("dv-cell-error"));
   });
 
-  it("calls listRecords with the search query as the user types, debounced", async () => {
-    render(<DataViewPage templateId={1} />);
-    await screen.findByRole("searchbox");
-    await userEvent.type(screen.getByRole("searchbox"), "foo");
-    await waitFor(() => expect(listRecords).toHaveBeenLastCalledWith(1, "foo"), { timeout: 1000 });
-  });
-
-  it("keeps the grid mounted (no loading flash) while a search re-fetch is in flight", async () => {
+  it("filters the grid client-side as the user types, with no extra listRecords call", async () => {
     vi.mocked(listRecords).mockResolvedValueOnce([
       { id: 1, template_id: 1, data: { a: 1, b: 1 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+      { id: 2, template_id: 1, data: { a: 2, b: 2 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
     ]);
     render(<DataViewPage templateId={1} />);
     await screen.findByRole("grid");
+    // Two calls on load: one for the grid's own records, one for the
+    // template dropdown's row count.
+    await waitFor(() => expect(listRecords).toHaveBeenCalledTimes(2));
 
-    vi.mocked(listRecords).mockReturnValue(new Promise(() => {})); // the search fetch never resolves
-    await userEvent.type(screen.getByRole("searchbox"), "x");
-    await waitFor(() => expect(listRecords).toHaveBeenCalledTimes(2), { timeout: 1000 });
+    expect(screen.getByText("2 of 2 rows")).toBeInTheDocument();
 
+    await userEvent.type(screen.getByRole("searchbox"), "zzz-no-match");
+    await waitFor(() => expect(screen.getByText("0 of 2 rows")).toBeInTheDocument());
+    // Filtering is purely client-side (AG-Grid's quickFilterText) -- no
+    // extra fetch, and the grid itself never unmounts.
+    expect(listRecords).toHaveBeenCalledTimes(2);
     expect(screen.getByRole("grid")).toBeInTheDocument();
-    expect(screen.getByText(/searching/i)).toBeInTheDocument();
   });
 
   it("shows boolean values in plain language instead of true/false", async () => {
@@ -109,7 +117,7 @@ describe("DataViewPage", () => {
       { id: 1, template_id: 1, data: { active: true }, computed: {}, created_at: "", updated_at: "" },
     ]);
     render(<DataViewPage templateId={1} />);
-    expect(await screen.findByText("Yes")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Yes")).toBeInTheDocument();
   });
 
   it("shows an error message when records fail to load", async () => {
@@ -131,13 +139,16 @@ describe("DataViewPage", () => {
       updated_at: "",
     });
     render(<DataViewPage templateId={1} />);
-    await userEvent.click(await screen.findByRole("button", { name: /edit row 1/i }));
-    const fieldA = await screen.findByLabelText("a");
+    await userEvent.click(await screen.findByRole("button", { name: /row actions for 5/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /edit in form/i }));
+    const fieldA = await screen.findByLabelText(/^a$/i);
     await userEvent.clear(fieldA);
     await userEvent.type(fieldA, "9");
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(updateRecord).toHaveBeenCalledWith(1, { a: 9, b: 2 }));
-    expect(await screen.findByText("4.5")).toBeInTheDocument();
+    // "4.5" appears both in the updated ratio cell and (with a single row)
+    // in the pinned summary row's total for that column.
+    expect((await screen.findAllByText("4.5")).length).toBeGreaterThan(0);
     // The dialog closes after a successful save.
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -147,18 +158,20 @@ describe("DataViewPage", () => {
       { id: 1, template_id: 1, data: { a: 5, b: 2 }, computed: { ratio: 2.5 }, created_at: "", updated_at: "" },
     ]);
     render(<DataViewPage templateId={1} />);
-    const cell = await screen.findByText("5");
+    // "5" appears both in the row's own "a" cell and (with a single row) in
+    // the pinned summary row's total for that column.
+    const [cell] = await screen.findAllByText("5");
     await userEvent.click(cell);
     await userEvent.dblClick(cell);
     // The grid value is unchanged and no save was ever triggered -- not
     // checking for the absence of a spinbutton role, since AG-Grid's own
     // pagination control (page-number input) also uses that role and
     // would make this assertion a false positive.
-    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getAllByText("5").length).toBeGreaterThan(0);
     expect(updateRecord).not.toHaveBeenCalled();
   });
 
-  it("opens the same form for Add row, with blank defaults, and creates the record with the entered values", async () => {
+  it("adds a row via the grid's inline temp row, with blank defaults, and creates the record with the entered values", async () => {
     vi.mocked(createRecord).mockResolvedValueOnce({
       id: 2,
       template_id: 1,
@@ -168,12 +181,25 @@ describe("DataViewPage", () => {
       updated_at: "",
     });
     render(<DataViewPage templateId={1} />);
-    await screen.findByRole("grid");
-    await userEvent.click(screen.getByRole("button", { name: /add row/i }));
-    const fieldA = await screen.findByLabelText("a");
+    await screen.findByRole("heading", { name: "Expenses" });
+    await userEvent.click(screen.getByRole("button", { name: "+ Add row" }));
+    // Add row starts inline editing on the first editable cell ("a") rather
+    // than opening the Edit form. The app auto-starts that editing itself
+    // (api.startEditingCell right after the temp row is added), but that
+    // doesn't take effect reliably under jsdom's lack of real layout /
+    // row virtualization, so this double-clicks the cell instead -- same
+    // observable contract (an editable inline row that commits on Enter).
+    const cell = await waitFor(() => {
+      const el = document.querySelector('[role="gridcell"][col-id="a"]');
+      if (!el) throw new Error("cell not rendered yet");
+      return el as HTMLElement;
+    });
+    await userEvent.dblClick(cell);
+    const fieldA = await screen.findByRole("spinbutton");
     await userEvent.type(fieldA, "9");
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
-    // Nothing is created until Save -- not an immediate blank createRecord({}).
+    await userEvent.keyboard("{Enter}");
+    // Nothing is created until the cell commits -- not an immediate blank
+    // createRecord({}).
     await waitFor(() => expect(createRecord).toHaveBeenCalledWith(1, { a: 9, b: null }));
     expect(await screen.findByText("#VALUE!")).toBeInTheDocument();
   });
@@ -191,11 +217,12 @@ describe("DataViewPage", () => {
       updated_at: "",
     });
     render(<DataViewPage templateId={1} />);
-    await userEvent.click(await screen.findByRole("button", { name: /edit row 1/i }));
-    const fieldA = await screen.findByLabelText("a");
+    await userEvent.click(await screen.findByRole("button", { name: /row actions for 5/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /edit in form/i }));
+    const fieldA = await screen.findByLabelText(/^a$/i);
     await userEvent.clear(fieldA);
     await userEvent.type(fieldA, "9");
-    const fieldB = await screen.findByLabelText("b");
+    const fieldB = await screen.findByLabelText(/^b$/i);
     await userEvent.clear(fieldB);
     await userEvent.type(fieldB, "8");
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
@@ -208,15 +235,16 @@ describe("DataViewPage", () => {
       { id: 1, template_id: 1, data: { a: 5, b: 2 }, computed: { ratio: 2.5 }, created_at: "", updated_at: "" },
     ]);
     render(<DataViewPage templateId={1} />);
-    await userEvent.click(await screen.findByRole("button", { name: /edit row 1/i }));
-    const fieldA = await screen.findByLabelText("a");
+    await userEvent.click(await screen.findByRole("button", { name: /row actions for 5/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /edit in form/i }));
+    const fieldA = await screen.findByLabelText(/^a$/i);
     await userEvent.clear(fieldA);
     await userEvent.type(fieldA, "999");
     await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(updateRecord).not.toHaveBeenCalled();
     // The grid still shows the original, unchanged value.
-    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getAllByText("5").length).toBeGreaterThan(0);
   });
 
   it("deletes a row via its per-row delete action, calling deleteRecord", async () => {
@@ -225,11 +253,11 @@ describe("DataViewPage", () => {
     ]);
     vi.mocked(deleteRecord).mockResolvedValueOnce(undefined);
     render(<DataViewPage templateId={1} />);
-    const deleteButton = await screen.findByRole("button", { name: /delete row 1/i });
-    await userEvent.click(deleteButton);
+    await userEvent.click(await screen.findByRole("button", { name: /row actions for 1/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /^delete$/i }));
     await waitFor(() => expect(deleteRecord).toHaveBeenCalledWith(1));
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /delete row 1/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /row actions for 1/i })).not.toBeInTheDocument()
     );
   });
 
@@ -240,8 +268,10 @@ describe("DataViewPage", () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
     render(<DataViewPage templateId={1} />);
-    await screen.findByRole("grid");
-    await userEvent.click(screen.getByRole("button", { name: /^export$/i }));
+    await screen.findByRole("heading", { name: "Expenses" });
+    // Export lives behind the "Data" dropdown.
+    await userEvent.click(screen.getByRole("button", { name: /^data/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /^export$/i }));
     await waitFor(() => expect(exportTemplate).toHaveBeenCalledWith(1));
     expect(createObjectURL).toHaveBeenCalledWith(blob);
   });
@@ -252,7 +282,7 @@ describe("DataViewPage", () => {
       errors: [{ row_number: 3, reason: "invalid type for column 'count'" }],
     });
     render(<DataViewPage templateId={1} />);
-    await screen.findByRole("grid");
+    await screen.findByRole("heading", { name: "Expenses" });
     const file = new File(["dummy"], "data.xlsx");
     await userEvent.upload(screen.getByLabelText(/import/i), file);
     expect(await screen.findByText(/row 3/i)).toBeInTheDocument();
@@ -265,7 +295,7 @@ describe("DataViewPage", () => {
       errors: [{ row_number: 0, reason: "Header mismatch: missing required column(s) ['b']" }],
     });
     render(<DataViewPage templateId={1} />);
-    await screen.findByRole("grid");
+    await screen.findByRole("heading", { name: "Expenses" });
     const file = new File(["dummy"], "data.xlsx");
     await userEvent.upload(screen.getByLabelText(/import/i), file);
     expect(await screen.findByText(/nothing was imported/i)).toBeInTheDocument();
@@ -275,7 +305,7 @@ describe("DataViewPage", () => {
   it("shows a plain success message after an import with no errors", async () => {
     vi.mocked(importTemplate).mockResolvedValueOnce({ imported_count: 4, errors: [] });
     render(<DataViewPage templateId={1} />);
-    await screen.findByRole("grid");
+    await screen.findByRole("heading", { name: "Expenses" });
     const file = new File(["dummy"], "data.xlsx");
     await userEvent.upload(screen.getByLabelText(/import/i), file);
     expect(await screen.findByText(/imported 4 rows/i)).toBeInTheDocument();
