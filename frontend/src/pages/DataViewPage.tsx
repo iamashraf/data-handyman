@@ -420,7 +420,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       <h1 className="dv-header">Handy Recorder</h1>
       <div className="dv-layout">
         <aside className="dv-sidebar">
-          <h2>Templates</h2>
+          <h2>View records for</h2>
           {templatesError ? <p className="dv-sidebar-error">{templatesError}</p> : null}
           <ul className="dv-sidebar-list">
             {templates.map((t) => (
