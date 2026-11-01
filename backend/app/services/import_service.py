@@ -18,6 +18,7 @@ model -- one bad row never blocks the rest of the file.
 """
 
 import io
+import logging
 import math
 import sqlite3
 import zipfile
@@ -30,6 +31,8 @@ from openpyxl.utils.exceptions import InvalidFileException
 
 from app.models.template import TemplateColumn, TemplateRead
 from app.repository import records_repo
+
+logger = logging.getLogger("app.import_service")
 
 
 @dataclass
@@ -134,12 +137,14 @@ def infer_template_columns(file_bytes: bytes) -> list[TemplateColumn]:
     try:
         workbook = load_workbook(io.BytesIO(file_bytes), data_only=True)
     except (zipfile.BadZipFile, InvalidFileException) as exc:
+        logger.warning("Create-from-Excel: uploaded file isn't a readable .xlsx workbook (%s)", exc)
         raise ValueError("Could not read uploaded file as an .xlsx workbook") from exc
 
     sheet = workbook.worksheets[0]
     rows = list(sheet.iter_rows(values_only=True))
     header = _header_names(rows[0]) if rows else []
     if not header:
+        logger.warning("Create-from-Excel: uploaded file has no header row")
         raise ValueError("Uploaded file has no header row to infer columns from")
 
     data_rows = rows[1:]
@@ -170,6 +175,11 @@ def import_xlsx(
     try:
         workbook = load_workbook(io.BytesIO(file_bytes), data_only=True)
     except (zipfile.BadZipFile, InvalidFileException) as exc:
+        logger.warning(
+            "Import for template %s: uploaded file isn't a readable .xlsx workbook (%s)",
+            template.id,
+            exc,
+        )
         raise ValueError("Could not read uploaded file as an .xlsx workbook") from exc
 
     sheet = workbook.worksheets[0]
@@ -178,6 +188,12 @@ def import_xlsx(
     header = _header_names(rows[0]) if rows else []
     missing = [name for name in expected_names if name not in header]
     if missing:
+        logger.warning(
+            "Import for template %s: header mismatch, missing %s, found %s",
+            template.id,
+            sorted(missing),
+            sorted(header),
+        )
         return ImportResult(
             imported_count=0,
             errors=[
@@ -228,7 +244,32 @@ def import_xlsx(
             )
             continue
 
-        records_repo.create_record(conn, template.id, data)
-        imported_count += 1
+        try:
+            records_repo.create_record(conn, template.id, data)
+            imported_count += 1
+        except Exception:
+            # An unexpected failure saving one row (e.g. a database error)
+            # shouldn't take down the whole import -- rows already
+            # imported stay imported, same as a row that merely failed
+            # validation above. Logged with the full traceback since,
+            # unlike a validation error, there's no way to explain this to
+            # the user beyond "something went wrong".
+            logger.exception(
+                "Import for template %s: row %s failed to save unexpectedly",
+                template.id,
+                row_number,
+            )
+            errors.append(
+                ImportRowError(
+                    row_number=row_number,
+                    reason="Couldn't save this row due to an unexpected error. Check the server log for details.",
+                )
+            )
 
+    logger.info(
+        "Import for template %s: %s row(s) imported, %s failed",
+        template.id,
+        imported_count,
+        len(errors),
+    )
     return ImportResult(imported_count=imported_count, errors=errors)

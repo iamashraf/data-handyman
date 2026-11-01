@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 from typing import Annotated
 from urllib.parse import quote
@@ -13,6 +14,8 @@ from app.services import (
     record_service,
     template_service,
 )
+
+logger = logging.getLogger("app.export_import")
 
 router = APIRouter(tags=["export"])
 
@@ -124,6 +127,19 @@ def import_template(
         result = import_service.import_xlsx(conn, template, file_bytes)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        # Per-row failures are already handled inside import_xlsx; this is
+        # a safety net for anything unexpected outside that loop (e.g. a
+        # workbook openpyxl loads but then chokes on while reading rows).
+        # Logged here, with request context, rather than left to whatever
+        # the ASGI server's own unhandled-exception logging does.
+        logger.exception(
+            "Import failed unexpectedly for template %s, file %r", template_id, file.filename
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Couldn't import this file due to an unexpected error. Check the server log for details.",
+        ) from exc
 
     return _import_result_response(result)
 
@@ -150,7 +166,18 @@ def create_template_from_excel(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    result = import_service.import_xlsx(conn, template, file_bytes)
+    try:
+        result = import_service.import_xlsx(conn, template, file_bytes)
+    except Exception as exc:
+        logger.exception(
+            "Create-from-Excel: import failed unexpectedly for new template %s, file %r",
+            template.id,
+            file.filename,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="The template was created, but importing its rows failed unexpectedly. Check the server log for details.",
+        ) from exc
     return TemplateFromExcelResponse(
         template=template, import_result=_import_result_response(result)
     )

@@ -5,7 +5,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.db import DB_PATH, get_connection, init_db
+from app.logging_config import configure_logging
 from app.routers import export_import, records, summary, templates
+
+configure_logging()
 
 
 @asynccontextmanager
