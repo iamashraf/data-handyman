@@ -522,6 +522,9 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                   Searching…
                 </p>
               ) : null}
+              <p className="dv-hint">
+                Click a cell to edit it. Use the Delete button at the end of a row to remove it.
+              </p>
               <div className="dv-grid">
                 <AgGridReact
                   theme={gridTheme}
@@ -531,6 +534,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                   getRowId={(params) => String(params.data.id)}
                   overlayNoRowsTemplate="No records yet."
                   onCellValueChanged={handleCellValueChanged}
+                  singleClickEdit
                 />
               </div>
             </>

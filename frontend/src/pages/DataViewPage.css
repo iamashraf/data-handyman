@@ -277,6 +277,15 @@
   padding: var(--space-4) 0;
 }
 
+/* Plain-language reminder of how editing works, shown once above the
+   grid — inline cell editing has no visual affordance of its own, so this
+   is the only thing that makes "click a cell to change it" discoverable. */
+.dv-hint {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin: 0 0 var(--space-2) 0;
+}
+
 /* Shown next to the grid during a search re-fetch — the grid itself stays
    mounted and visible, so typing a search never blanks the sheet out
    from under the user. */
