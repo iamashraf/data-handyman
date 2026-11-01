@@ -1,6 +1,7 @@
 import type {
   ImportResult,
   RecordRead,
+  SummaryRow,
   TemplateApplyResult,
   TemplateColumn,
   TemplateRead,
@@ -131,6 +132,18 @@ export async function exportTemplate(
     throw new ApiError(res.status, await parseBody(res));
   }
   return res.blob();
+}
+
+export function getSummary(
+  templateId: number,
+  groupBy: string,
+  metric?: string
+): Promise<SummaryRow[]> {
+  const params = new URLSearchParams({ group_by: groupBy });
+  if (metric) {
+    params.set("metric", metric);
+  }
+  return request<SummaryRow[]>(`/templates/${templateId}/summary?${params.toString()}`);
 }
 
 export async function importTemplate(templateId: number, file: File): Promise<ImportResult> {
