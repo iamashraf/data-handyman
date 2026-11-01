@@ -158,12 +158,27 @@ function RowActionsCell(
   );
 }
 
-/** Matches the backend's expected date format (date.fromisoformat), and
- *  what typing a plain "YYYY-MM-DD" date into the edit form produces. */
+/** Matches the backend's expected date format (date.fromisoformat). */
 function isValidIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(value);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+/** Accepts whatever date format someone typed (not just YYYY-MM-DD) and
+ *  normalizes it to the backend's expected format. Reads back the
+ *  parsed date's local year/month/day rather than toISOString(), which
+ *  converts to UTC and can shift the date by a day depending on the
+ *  browser's timezone. Returns null if the text isn't a date at all. */
+function normalizeTypedDate(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (isValidIsoDate(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function DataViewPage({ templateId }: DataViewPageProps) {
@@ -428,19 +443,25 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
    *  time. */
   async function handleSaveEdit() {
     if (!template) return;
+    const normalizedDraft: Record<string, unknown> = { ...editDraft };
     for (const column of template.columns) {
       if (column.type !== "date") continue;
-      const value = editDraft[column.name];
-      if (value != null && !isValidIsoDate(String(value))) {
-        setEditSaveError(`"${column.name}" needs a date as YYYY-MM-DD, e.g. 2024-01-15.`);
+      const value = normalizedDraft[column.name];
+      if (value == null) continue;
+      const normalized = normalizeTypedDate(String(value));
+      if (normalized == null) {
+        setEditSaveError(
+          `"${column.name}" isn't a date I recognize. Try YYYY-MM-DD, or a format like "Jan 15 2024".`
+        );
         return;
       }
+      normalizedDraft[column.name] = normalized;
     }
     if (editModalMode === "edit" && editingRecordId != null) {
       setSavingEdit(true);
       setEditSaveError(null);
       try {
-        const updated = await updateRecord(editingRecordId, editDraft);
+        const updated = await updateRecord(editingRecordId, normalizedDraft);
         setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
         setEditModalMode(null);
       } catch (error) {
@@ -458,7 +479,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       setSavingEdit(true);
       setEditSaveError(null);
       try {
-        const created = await createRecord(selectedId, editDraft);
+        const created = await createRecord(selectedId, normalizedDraft);
         setRecords((prev) => [...prev, created]);
         setEditModalMode(null);
       } catch (error) {
@@ -810,13 +831,25 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                       />
                     ) : col.type === "date" ? (
                       <>
-                        <input
-                          type="text"
-                          placeholder="YYYY-MM-DD"
-                          value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
-                          onChange={(e) => handleEditFieldChange(col.name, e.target.value || null)}
-                        />
-                        <span className="dv-field-hint">Type the date as YYYY-MM-DD, e.g. 2024-01-15.</span>
+                        <div className="dv-date-field">
+                          <input
+                            type="text"
+                            placeholder="Any format, e.g. Jan 15 2024"
+                            value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
+                            onChange={(e) => handleEditFieldChange(col.name, e.target.value || null)}
+                          />
+                          <input
+                            type="date"
+                            aria-label={`${col.name}, pick from calendar`}
+                            value={
+                              editDraft[col.name] != null && isValidIsoDate(String(editDraft[col.name]))
+                                ? String(editDraft[col.name])
+                                : ""
+                            }
+                            onChange={(e) => handleEditFieldChange(col.name, e.target.value || null)}
+                          />
+                        </div>
+                        <span className="dv-field-hint">Type the date in any format, or pick one from the calendar.</span>
                       </>
                     ) : (
                       <input
