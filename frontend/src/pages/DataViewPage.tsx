@@ -318,7 +318,13 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       cellRendererParams: { onDelete: handleDeleteRow, onEdit: handleOpenEdit },
     };
     return [...dataColumns, actionsColumn];
-  }, [template, hiddenColumns]);
+    // `records` is a real dependency here, not an oversight: `onEdit`
+    // (handleOpenEdit) closes over `records` to look the row up by id.
+    // Without it in this list, cellRendererParams would keep the stale
+    // closure from whenever columnDefs last recomputed -- which is
+    // exactly the bug this fixes (Edit silently doing nothing because it
+    // always looked up an empty/outdated `records` array).
+  }, [template, hiddenColumns, records]);
 
   const defaultColDef = useMemo<ColDef>(() => ({ cellRenderer: ValueCell }), []);
 

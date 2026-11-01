@@ -195,10 +195,21 @@ def import_xlsx(
     errors: list[ImportRowError] = []
 
     for row_number, row in enumerate(rows[1:], start=2):
-        if all(cell is None for cell in row):
-            continue  # trailing/blank row from the sheet's styled range
-
         row_by_name = dict(zip(header, row))
+
+        # Blank only in the columns this template actually cares about --
+        # not "every cell in the physical row across every column". A
+        # summary section can sit anywhere on the same sheet (to the
+        # right of the data, as this app's own export does, or any other
+        # offset); checking only the expected columns means a summary
+        # row with content in *other* columns is still correctly treated
+        # as blank/irrelevant here, regardless of where that content is.
+        # (This can't help if a summary row's content happens to land in
+        # the exact same columns as the real data -- that's genuinely
+        # indistinguishable from a real row without a marker.)
+        if all(row_by_name.get(column.name) is None for column in expected_columns):
+            continue
+
         data: dict[str, Any] = {}
         row_reasons: list[str] = []
 
