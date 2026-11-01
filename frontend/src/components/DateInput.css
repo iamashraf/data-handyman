@@ -66,7 +66,7 @@
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(32, 43, 35, 0.2);
+  box-shadow: 0 8px 24px rgba(43, 54, 42, 0.2);
   padding: var(--space-2);
   width: 240px;
 }

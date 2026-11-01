@@ -301,7 +301,7 @@
 .tb-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(32, 43, 35, 0.45);
+  background: rgba(43, 54, 42, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -314,7 +314,7 @@
   padding: var(--space-5);
   max-width: 440px;
   width: 100%;
-  box-shadow: 0 8px 24px rgba(32, 43, 35, 0.25);
+  box-shadow: 0 8px 24px rgba(43, 54, 42, 0.25);
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -1,22 +1,42 @@
-/* Top-level chrome above every page: the app banner and the nav below it.
-   Reuses the same tokens as every other page's chrome
-   (src/styles/tokens.css). */
+/* App shell: header (icon + title + nav), body (the active page), and a
+   footer -- a fixed three-region layout so the body region has a real
+   height to size the records grid against, instead of a hardcoded vh
+   calculation. Reuses the tokens from src/styles/tokens.css. */
+.app-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .app-header {
-  padding: var(--space-5) var(--space-5) 0;
+  flex: none;
+  padding: var(--space-4) var(--space-5) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.app-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.app-icon {
+  color: var(--accent);
+  flex: none;
 }
 
 .app-title {
   margin: 0;
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 26px;
+  font-size: 24px;
   letter-spacing: 0.01em;
 }
 
 .app-nav {
   display: flex;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-5) 0;
+  padding: var(--space-3) 0 0;
 }
 
 .app-nav-button {
@@ -37,4 +57,25 @@
 .app-nav-button[aria-current="true"] {
   color: var(--ink);
   border-bottom-color: var(--accent);
+}
+
+.app-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.app-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border-top: 1px solid var(--rule);
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.app-footer-sep {
+  opacity: 0.6;
 }

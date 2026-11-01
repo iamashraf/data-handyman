@@ -15,17 +15,20 @@
  */
 
 :root {
+  /* Softened for readability: the surface is a warm off-white rather than
+     pure #fff (less glare against dark text), and --ink sits a step
+     lighter than near-black so body text isn't stark black-on-white. */
   --paper: #f2f4ee;
-  --paper-band: #e3ead9;
-  --ink: #202b23;
-  --ink-muted: #51604f;
-  --rule: #b7c4ac;
-  --accent: #3c6e53;
-  --accent-ink: #f2f4ee;
-  --warn: #9c4a2c;
+  --paper-band: #e5ebdc;
+  --ink: #2b362a;
+  --ink-muted: #5c6b5a;
+  --rule: #c3cdb9;
+  --accent: #42785c;
+  --accent-ink: #f8faf5;
+  --warn: #a35a3c;
   --warn-ink: #f8f1ec;
-  --warn-bg: #f5e9e3;
-  --surface: #ffffff;
+  --warn-bg: #f6ebe5;
+  --surface: #fbfbf7;
 
   --font-heading: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
   --font-body: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -46,6 +49,12 @@
 }
 
 html,
+body,
+#root {
+  height: 100%;
+}
+
+html,
 body {
   margin: 0;
   background: var(--paper);
@@ -55,7 +64,7 @@ body {
 
 body {
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 button {

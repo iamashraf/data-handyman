@@ -39,18 +39,18 @@ const SEARCH_DEBOUNCE_MS = 150;
 const COLUMN_STATE_PREFIX = "data-handyman:columns:";
 
 const gridTheme = themeQuartz.withParams({
-  accentColor: "#3c6e53",
-  backgroundColor: "#ffffff",
-  foregroundColor: "#202b23",
-  headerBackgroundColor: "#e3ead9",
-  headerTextColor: "#202b23",
+  accentColor: "#42785c",
+  backgroundColor: "#fbfbf7",
+  foregroundColor: "#2b362a",
+  headerBackgroundColor: "#e5ebdc",
+  headerTextColor: "#2b362a",
   headerFontWeight: 600,
-  oddRowBackgroundColor: "#ffffff",
-  rowHoverColor: "#eef2e9",
-  borderColor: "#b7c4ac",
-  wrapperBorder: { color: "#b7c4ac" },
+  oddRowBackgroundColor: "#fbfbf7",
+  rowHoverColor: "#eef1e6",
+  borderColor: "#c3cdb9",
+  wrapperBorder: { color: "#c3cdb9" },
   wrapperBorderRadius: 7,
-  cellTextColor: "#202b23",
+  cellTextColor: "#2b362a",
   fontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   cellFontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   headerFontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
@@ -314,6 +314,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
   const gridApiRef = useRef<import("ag-grid-community").GridApi | null>(null);
+  const selectedIdRef = useRef<number | undefined>(selectedId);
+  selectedIdRef.current = selectedId;
   const latestRequest = useRef(0);
   const loadedTemplateId = useRef<number | undefined>(undefined);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
@@ -361,6 +363,23 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       window.history.replaceState(null, "", next);
     }
   }, [selectedId]);
+
+  // Back/forward and a manually-edited hash should also switch templates,
+  // not just the initial load -- otherwise the URL and the grid silently
+  // drift apart (the hash-sync effect above would then fight back and
+  // forth, overwriting the hash with whatever selectedId is stale on).
+  useEffect(() => {
+    function handleHashChange() {
+      const hashMatch = /^#\/records\/(\d+)/.exec(window.location.hash);
+      const fromHash = hashMatch ? Number(hashMatch[1]) : undefined;
+      if (fromHash != null && fromHash !== selectedIdRef.current) {
+        handleSelectTemplate(fromHash);
+      }
+    }
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     listTemplates()
