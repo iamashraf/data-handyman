@@ -654,9 +654,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         return {
           ...base,
           cellRenderer: TextCell,
-          cellEditor: "agLargeTextCellEditor",
-          cellEditorPopup: true,
-          cellEditorParams: { rows: 6, cols: 50 },
           filter: "agTextColumnFilter",
           tooltipField: col.name,
         };
