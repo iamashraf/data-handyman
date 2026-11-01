@@ -8,6 +8,15 @@ with no containers, no virtualization, and no WSL.
 Follow every command exactly, in order. Each step says what success
 looks like before you move to the next one.
 
+**Prefer one command over following these steps by hand?** Download the
+project (see [step 4](#4-get-the-app) below), then double-click
+`run-windows.bat` in the project folder (or run
+`powershell -ExecutionPolicy Bypass -File .\run-windows.ps1`). It checks
+for Python, Node.js and uv, installs whichever are missing straight from
+python.org/nodejs.org with the official checksum verified, then starts
+the app and opens it in your browser. It does everything below, in order,
+every time you run it.
+
 ## What you need
 
 - Windows 10 or 11
