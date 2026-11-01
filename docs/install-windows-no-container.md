@@ -15,7 +15,9 @@ project (see [step 4](#4-get-the-app) below), then double-click
 for Python, Node.js and uv, installs whichever are missing straight from
 python.org/nodejs.org with the official checksum verified, then starts
 the app and opens it in your browser. It does everything below, in order,
-every time you run it.
+every time you run it. When you're done, double-click `stop-windows.bat`
+(or run `stop-windows.ps1`) to cleanly stop both the backend and
+frontend it started, instead of closing each window by hand.
 
 ## What you need
 
@@ -163,8 +165,11 @@ http://localhost:5173
 
 ## Stopping the app
 
-In each PowerShell window, press `Ctrl+C`. If it asks to confirm,
-type `Y` and press Enter.
+If you started the app with `run-windows.bat`/`run-windows.ps1`, double-click
+`stop-windows.bat` (or run `stop-windows.ps1`) to stop both windows at once.
+
+Otherwise, in each PowerShell window, press `Ctrl+C`. If it asks to
+confirm, type `Y` and press Enter.
 
 ## Running it again later
 
