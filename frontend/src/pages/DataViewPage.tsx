@@ -6,6 +6,7 @@ import type { CellValueChangedEvent, ColDef, ICellRendererParams } from "ag-grid
 import {
   ApiError,
   createRecord,
+  createTemplateFromExcel,
   deleteRecord,
   exportTemplate,
   getTemplate,
@@ -183,6 +184,10 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importInputKey, setImportInputKey] = useState(0);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [creatingFromExcel, setCreatingFromExcel] = useState(false);
+  const [createFromExcelError, setCreateFromExcelError] = useState<string | null>(null);
+  const [createFromExcelInputKey, setCreateFromExcelInputKey] = useState(0);
 
   const latestRequest = useRef(0);
   const loadedTemplateId = useRef<number | undefined>(undefined);
@@ -441,6 +446,45 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     }
   }
 
+  /** Infers a new template's columns from an uploaded .xlsx file and
+   *  imports that same file's rows in one action, then switches straight
+   *  to viewing the new template's records — no separate "review the
+   *  inferred schema" step; columns can be edited afterward like any
+   *  other template, same as a hand-built one. */
+  async function handleCreateFromExcel(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    const name = newTemplateName.trim();
+    if (!file) {
+      return;
+    }
+    if (!name) {
+      // Was a silent disabled input before this point until a name was
+      // typed — picking a file did nothing, with no explanation. Now the
+      // file picker is always enabled, and a missing name says so clearly.
+      setCreateFromExcelError("Enter a template name first.");
+      setCreateFromExcelInputKey((k) => k + 1);
+      return;
+    }
+    setCreatingFromExcel(true);
+    setCreateFromExcelError(null);
+    try {
+      const { template: created, import_result } = await createTemplateFromExcel(name, file);
+      setTemplates((prev) => [...prev, created]);
+      setNewTemplateName("");
+      handleSelect(created.id);
+      setImportResult(import_result);
+    } catch (error) {
+      setCreateFromExcelError(
+        error instanceof ApiError
+          ? describeApiError(error)
+          : "Couldn't create a template from this file. Check your connection and try again."
+      );
+    } finally {
+      setCreatingFromExcel(false);
+      setCreateFromExcelInputKey((k) => k + 1);
+    }
+  }
+
   return (
     <div className="dv-page">
       <h1 className="dv-header">Handy Recorder</h1>
@@ -462,6 +506,33 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
               </li>
             ))}
           </ul>
+
+          <div className="dv-create-from-excel">
+            <h2>Or create one from Excel</h2>
+            <label className="dv-field">
+              <span className="dv-search-label">Template name</span>
+              <input
+                type="text"
+                placeholder="e.g. Timesheet"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                disabled={creatingFromExcel}
+              />
+            </label>
+            {createFromExcelError ? <p className="dv-sidebar-error">{createFromExcelError}</p> : null}
+            <label className="dv-toolbar-button dv-import-label dv-create-from-excel-button">
+              {creatingFromExcel ? "Creating…" : "Choose file…"}
+              <input
+                key={createFromExcelInputKey}
+                type="file"
+                accept=".xlsx"
+                className="dv-import-input"
+                onChange={handleCreateFromExcel}
+                disabled={creatingFromExcel}
+              />
+            </label>
+            <p className="dv-hint">Columns and their types are guessed from the file; edit them anytime in Templates.</p>
+          </div>
         </aside>
 
         <main className="dv-main">
