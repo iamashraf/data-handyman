@@ -582,17 +582,23 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       .filter((col) => !hiddenColumns.has(col.name))
       .map((col, index) => {
         const isFormula = col.formula != null;
+        const isPinned = col.pinned === "left" || (index === 0 && template.columns.length > 8);
         const base: ColDef = {
           field: col.name,
           headerName: (isFormula ? "ƒx  " : "") + columnLabel(col),
           headerTooltip: isFormula ? `Formula: ${col.formula}` : undefined,
           minWidth: 90,
           maxWidth: 360,
+          // Non-pinned columns share any leftover grid width proportionally
+          // instead of leaving it blank past the last column -- pinned
+          // columns stay a fixed anchor width, same as a custom `col.width`
+          // overriding the default for either kind.
+          flex: !isPinned && !col.width ? 1 : undefined,
           wrapHeaderText: true,
           autoHeaderHeight: true,
           cellDataType: false,
           editable: !isFormula,
-          pinned: col.pinned === "left" || (index === 0 && template.columns.length > 8) ? "left" : undefined,
+          pinned: isPinned ? "left" : undefined,
           headerClass: col.type === "number" ? "dv-numeric-header" : undefined,
           cellClass: [
             col.type === "number" ? "dv-numeric" : "",
