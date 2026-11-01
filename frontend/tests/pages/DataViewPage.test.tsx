@@ -171,7 +171,7 @@ describe("DataViewPage", () => {
     expect(updateRecord).not.toHaveBeenCalled();
   });
 
-  it("adds a row via the grid's inline temp row, with blank defaults, and creates the record with the entered values", async () => {
+  it("Add row opens a popup with blank defaults; Save & add another creates the record and keeps the popup open for the next one", async () => {
     vi.mocked(createRecord).mockResolvedValueOnce({
       id: 2,
       template_id: 1,
@@ -183,25 +183,38 @@ describe("DataViewPage", () => {
     render(<DataViewPage templateId={1} />);
     await screen.findByRole("heading", { name: "Expenses" });
     await userEvent.click(screen.getByRole("button", { name: "+ Add row" }));
-    // Add row starts inline editing on the first editable cell ("a") rather
-    // than opening the Edit form. The app auto-starts that editing itself
-    // (api.startEditingCell right after the temp row is added), but that
-    // doesn't take effect reliably under jsdom's lack of real layout /
-    // row virtualization, so this double-clicks the cell instead -- same
-    // observable contract (an editable inline row that commits on Enter).
-    const cell = await waitFor(() => {
-      const el = document.querySelector('[role="gridcell"][col-id="a"]');
-      if (!el) throw new Error("cell not rendered yet");
-      return el as HTMLElement;
-    });
-    await userEvent.dblClick(cell);
-    const fieldA = await screen.findByRole("spinbutton");
+
+    expect(await screen.findByRole("heading", { name: /^add row$/i })).toBeInTheDocument();
+    // The formula column can't be filled in -- it has no value until the
+    // record is actually created and the backend computes it.
+    expect(screen.getByDisplayValue("Computed after saving")).toBeInTheDocument();
+
+    const fieldA = await screen.findByLabelText(/^a$/i);
     await userEvent.type(fieldA, "9");
-    await userEvent.keyboard("{Enter}");
-    // Nothing is created until the cell commits -- not an immediate blank
+    await userEvent.click(screen.getByRole("button", { name: /save & add another/i }));
+
+    // Nothing is created until Save is clicked -- not an immediate blank
     // createRecord({}).
     await waitFor(() => expect(createRecord).toHaveBeenCalledWith(1, { a: 9, b: null }));
+    // The popup stays open (ready for a second row) instead of closing.
+    expect(await screen.findByRole("heading", { name: /add row/i })).toBeInTheDocument();
+    expect(screen.getByText(/1 added/i)).toBeInTheDocument();
+    // The form is cleared back to blank defaults for the next row.
+    expect(await screen.findByLabelText(/^a$/i)).toHaveValue(null);
+    // The first row is already visible in the grid behind the popup.
     expect(await screen.findByText("#VALUE!")).toBeInTheDocument();
+  });
+
+  it("Done closes the Add row popup without creating another record", async () => {
+    render(<DataViewPage templateId={1} />);
+    await screen.findByRole("heading", { name: "Expenses" });
+    await userEvent.click(screen.getByRole("button", { name: "+ Add row" }));
+    await screen.findByRole("heading", { name: /^add row$/i });
+
+    await userEvent.click(screen.getByRole("button", { name: /^done$/i }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(createRecord).not.toHaveBeenCalled();
   });
 
   it("saves both fields in one request when two fields are changed in the same modal session", async () => {
@@ -330,5 +343,58 @@ describe("DataViewPage", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: /edit in form/i }));
     expect((await screen.findByLabelText(/^title$/i)).tagName).toBe("INPUT");
     expect(screen.getByLabelText(/^notes$/i).tagName).toBe("TEXTAREA");
+  });
+
+  it("displays a column whose name contains a dot (AG Grid otherwise treats \"Door No.\" as a nested path and renders it blank)", async () => {
+    vi.mocked(getTemplate).mockResolvedValue({
+      id: 1,
+      name: "Expenses",
+      columns: [{ name: "Door No.", type: "number" as const, formula: null }],
+      created_at: "",
+      updated_at: "",
+    });
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { "Door No.": 69 }, computed: {}, created_at: "", updated_at: "" },
+    ]);
+    render(<DataViewPage templateId={1} />);
+    expect((await screen.findAllByText("69")).length).toBeGreaterThan(0);
+  });
+
+  it("saves the correct value under its own key when editing a dotted column (not dropped via AG Grid's nested-path field resolution)", async () => {
+    vi.mocked(getTemplate).mockResolvedValue({
+      id: 1,
+      name: "Expenses",
+      columns: [
+        { name: "owner", type: "text" as const, formula: null },
+        { name: "Door No.", type: "number" as const, formula: null },
+      ],
+      created_at: "",
+      updated_at: "",
+    });
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { owner: "Earadat", "Door No.": 69 }, computed: {}, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(updateRecord).mockResolvedValueOnce({
+      id: 1,
+      template_id: 1,
+      data: { owner: "Earadat", "Door No.": 70 },
+      computed: {},
+      created_at: "",
+      updated_at: "",
+    });
+    render(<DataViewPage templateId={1} />);
+    const cell = await waitFor(() => {
+      const el = document.querySelector('[role="gridcell"][col-id="Door No."]');
+      if (!el) throw new Error("cell not rendered yet");
+      return el as HTMLElement;
+    });
+    await userEvent.dblClick(cell);
+    const editor = await screen.findByRole("spinbutton");
+    await userEvent.clear(editor);
+    await userEvent.type(editor, "70");
+    await userEvent.keyboard("{Enter}");
+    // The merge must still carry "owner" (untouched) and the new "Door
+    // No." value under its own flat key -- not silently dropped.
+    await waitFor(() => expect(updateRecord).toHaveBeenCalledWith(1, { owner: "Earadat", "Door No.": 70 }));
   });
 });
