@@ -1,3 +1,9 @@
+/*
+ * Template builder page. Reuses the shared button/menu/dialog/ledger-
+ * table/sidebar chrome from src/styles/components.css — only
+ * page-specific layout lives here.
+ */
+
 .tb-page {
   min-height: 100vh;
   padding: var(--space-6) var(--space-5);
@@ -10,7 +16,6 @@
   max-width: 920px;
 }
 
-/* Sidebar: a plain ledger index, not a card. */
 .tb-sidebar {
   flex: 0 0 200px;
 }
@@ -21,81 +26,6 @@
   font-weight: 600;
   color: var(--ink-muted);
   margin: 0 0 var(--space-2) 0;
-}
-
-.tb-sidebar-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--rule);
-}
-
-.tb-sidebar-item {
-  border-bottom: 1px solid var(--rule);
-}
-
-.tb-sidebar-item-row {
-  display: flex;
-  align-items: center;
-}
-
-.tb-sidebar-button {
-  display: block;
-  flex: 1;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: var(--space-2) var(--space-1);
-  font-size: 14px;
-  color: var(--ink);
-  cursor: pointer;
-  border-left: 3px solid transparent;
-}
-
-/* Per-template delete action — same bordered, warn-on-hover treatment as
-   the Records grid's per-row .dv-delete-row, so the two destructive
-   actions in the app read consistently. */
-.tb-sidebar-delete {
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 5px;
-  color: var(--ink-muted);
-  font-size: 12px;
-  padding: var(--space-1) var(--space-2);
-  margin-right: var(--space-1);
-  cursor: pointer;
-}
-
-.tb-sidebar-delete:hover {
-  color: var(--warn);
-  border-color: var(--warn);
-}
-
-.tb-sidebar-delete:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.tb-sidebar-button:hover {
-  background: var(--paper-band);
-}
-
-.tb-sidebar-button[aria-current="true"] {
-  border-left-color: var(--accent);
-  font-weight: 600;
-  background: var(--paper-band);
-}
-
-.tb-sidebar-new {
-  margin-top: var(--space-3);
-  background: none;
-  border: none;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: var(--space-1) 0;
 }
 
 .tb-sidebar-error {
@@ -120,30 +50,8 @@
 }
 
 .tb-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
   margin-bottom: var(--space-5);
   max-width: 420px;
-}
-
-.tb-field label {
-  font-size: 13px;
-  color: var(--ink-muted);
-}
-
-.tb-field input {
-  font-family: var(--font-body);
-  font-size: 15px;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
-}
-
-.tb-field input:focus-visible {
-  background: var(--surface);
 }
 
 .tb-columns-heading {
@@ -156,45 +64,17 @@
 
 /* The ruled ledger table: the one bold structural move on this page. Row
    numbers are earned here because column order is a real, meaningful
-   sequence in the data model, not decoration. */
-/* Scrolls internally past a fixed height, with the header pinned, so a
-   template with many columns (an uploaded Excel can easily have 20-50+)
-   doesn't balloon the whole page's length and push Save far out of
-   reach — the table grows a scrollbar instead, the same way the Records
-   grid already does for many rows. */
+   sequence in the data model, not decoration. Scrolls internally past a
+   fixed height, with the header pinned, so a template with many columns
+   (an uploaded Excel can easily have 20-50+) doesn't balloon the whole
+   page's length and push Save far out of reach. */
 .tb-table-wrap {
-  overflow-x: auto;
-  overflow-y: auto;
   max-height: 480px;
-}
-
-.tb-table {
-  width: 100%;
-  min-width: 480px;
-  border-collapse: collapse;
   margin-bottom: var(--space-3);
 }
 
-.tb-table th {
-  position: sticky;
-  top: 0;
-  text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  padding: var(--space-2) var(--space-2);
-  background: var(--surface);
-  border-bottom: 1px solid var(--rule);
-}
-
-.tb-table td {
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--rule);
-  vertical-align: middle;
-}
-
-.tb-table tbody tr:nth-child(odd) {
-  background: var(--paper-band);
+.tb-table {
+  min-width: 480px;
 }
 
 .tb-row-index {
@@ -232,45 +112,11 @@
   background: var(--paper);
 }
 
-.tb-remove-column {
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 5px;
-  color: var(--ink-muted);
-  font-size: 13px;
-  padding: var(--space-1) var(--space-2);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.tb-remove-column:hover {
-  color: var(--warn);
-  border-color: var(--warn);
-}
-
-.tb-add-column {
-  background: none;
-  border: none;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: var(--space-1) 0;
-}
-
 .tb-error {
-  color: var(--warn);
-  background: var(--warn-bg);
-  border: 1px solid var(--warn);
-  border-radius: var(--radius);
-  padding: var(--space-3);
   margin-top: var(--space-4);
-  font-size: 14px;
 }
 
 .tb-status {
-  color: var(--accent);
-  font-size: 14px;
   margin-top: var(--space-4);
 }
 
@@ -279,63 +125,6 @@
   justify-content: flex-end;
   gap: var(--space-3);
   margin-top: var(--space-5);
-}
-
-.tb-save {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: none;
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-5);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.tb-save:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* Destructive-change confirmation */
-.tb-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(43, 54, 42, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
-
-.tb-dialog {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-  max-width: 440px;
-  width: 100%;
-  box-shadow: 0 8px 24px rgba(43, 54, 42, 0.25);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .tb-overlay {
-    animation: tb-fade-in 0.12s ease-out;
-  }
-}
-
-@keyframes tb-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.tb-dialog h2 {
-  font-family: var(--font-heading);
-  font-size: 18px;
-  margin: 0 0 var(--space-3) 0;
 }
 
 .tb-dialog p {
@@ -351,32 +140,6 @@
 
 .tb-dialog li {
   margin-bottom: var(--space-1);
-}
-
-.tb-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-
-.tb-cancel {
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-4);
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.tb-confirm {
-  background: var(--warn);
-  color: var(--warn-ink);
-  border: none;
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-4);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
 }
 
 @media (max-width: 640px) {

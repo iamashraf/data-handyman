@@ -1,0 +1,632 @@
+/*
+ * Shared UI primitives — buttons, form fields, menus, dialogs, badges,
+ * toast. Every page (Records, Templates, Summary) uses these instead of
+ * declaring its own copy of the same button/menu/dialog chrome. Change a
+ * button's radius or a dialog's shadow here once, and it's correct
+ * everywhere, instead of three near-identical rules drifting apart.
+ *
+ * Pages still keep their own CSS for page-specific *layout* (grid area
+ * sizing, sidebar widths, toolbar arrangement) — only the chrome of
+ * reusable widgets lives here.
+ */
+
+/* ---------- buttons ---------- */
+
+/* Pages keep their existing class names in JSX (dv-/tb-/sv- prefixes) for
+   readability at the call site, but the actual declarations live here —
+   once, not three times — via these combined selectors. A page's own
+   .css file only holds page-specific *layout*, never button/dialog/menu
+   chrome. */
+.btn,
+.dv-toolbar-button,
+.dv-cancel-edit,
+.dv-template-dropdown-button,
+.tb-cancel,
+.sv-toolbar-button,
+.btn-primary,
+.dv-add-row-primary,
+.dv-save-edit,
+.tb-save,
+.btn-danger,
+.tb-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.btn:hover:not(:disabled),
+.dv-toolbar-button:hover:not(:disabled),
+.dv-cancel-edit:hover:not(:disabled),
+.dv-template-dropdown-button:hover,
+.tb-cancel:hover:not(:disabled),
+.sv-toolbar-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn:disabled,
+.dv-toolbar-button:disabled,
+.dv-cancel-edit:disabled,
+.tb-cancel:disabled,
+.sv-toolbar-button:disabled,
+.dv-add-row-primary:disabled,
+.dv-save-edit:disabled,
+.tb-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-primary,
+.dv-add-row-primary,
+.dv-save-edit,
+.tb-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-primary:hover:not(:disabled),
+.dv-add-row-primary:hover:not(:disabled),
+.dv-save-edit:hover:not(:disabled),
+.tb-save:hover:not(:disabled) {
+  opacity: 0.92;
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-danger,
+.tb-confirm {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: var(--warn-ink);
+}
+
+.btn-danger:hover:not(:disabled),
+.tb-confirm:hover:not(:disabled) {
+  opacity: 0.92;
+  border-color: var(--warn);
+  color: var(--warn-ink);
+}
+
+.btn-danger-outline:hover:not(:disabled),
+.dv-bulk-delete:hover:not(:disabled) {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+/* A plain text action (no border/background) -- "+ Add column", "+ New
+   template" style links. */
+.btn-link,
+.tb-add-column,
+.tb-sidebar-new {
+  height: auto;
+  padding: var(--space-1) 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-link:hover:not(:disabled),
+.tb-add-column:hover,
+.tb-sidebar-new:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.btn-sm,
+.tb-remove-column,
+.tb-sidebar-delete {
+  height: 28px;
+  padding: 0 var(--space-2);
+  font-size: 12px;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tb-remove-column:hover,
+.tb-sidebar-delete:hover {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.tb-sidebar-delete:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---------- form fields ---------- */
+
+.field,
+.dv-field,
+.tb-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field-label,
+.dv-search-label,
+.tb-field label,
+.sv-field span {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.input,
+.select,
+.dv-field input[type="text"],
+.dv-field input[type="number"],
+.dv-field select,
+.dv-edit-fields input[type="text"],
+.dv-edit-fields input[type="number"],
+.dv-edit-fields select,
+.dv-search input,
+.tb-field input,
+.sv-field select {
+  font-family: var(--font-body);
+  font-size: 14px;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-sizing: border-box;
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.dv-field input:focus-visible,
+.dv-field select:focus-visible,
+.dv-edit-fields input:focus-visible,
+.dv-edit-fields select:focus-visible,
+.dv-search input:focus-visible,
+.tb-field input:focus-visible,
+.sv-field select:focus-visible {
+  background: var(--surface);
+}
+
+textarea.input {
+  height: auto;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* A <select>'s intrinsic width otherwise tracks whichever option text is
+   currently selected (and in some engines, the widest option in the
+   list), so the control visibly grows/shrinks as the value changes.
+   Fixed width + ellipsis keeps every dropdown a stable, predictable
+   size regardless of what's selected. Pages set --select-width per
+   control where the default is wrong (e.g. a narrow Type picker). */
+.select,
+.dv-field select,
+.dv-edit-fields select,
+.sv-field select {
+  width: var(--select-width, 200px);
+  text-overflow: ellipsis;
+}
+
+.dv-template-dropdown-button {
+  width: var(--select-width, 220px);
+  text-align: left;
+  justify-content: space-between;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- menus / dropdown panels ---------- */
+
+.menu-panel,
+.dv-columns-panel,
+.dv-data-menu-panel,
+.dv-template-dropdown-panel,
+.dv-row-actions-menu {
+  position: absolute;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(43, 54, 42, 0.18);
+  overflow: hidden;
+}
+
+/* The row-actions menu is portaled to <body> (AG-Grid clips cell
+   overflow) and fixed-positioned by its own inline style instead of
+   this class's `position: absolute` -- see DataViewPage.tsx. */
+.dv-row-actions-menu-portal {
+  position: fixed;
+}
+
+.menu-panel-scroll,
+.dv-columns-panel,
+.dv-data-menu-panel {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.menu-item,
+.dv-data-menu-panel button,
+.dv-data-menu-import,
+.dv-row-actions-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 4px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.menu-item:hover,
+.dv-data-menu-panel button:hover,
+.dv-data-menu-import:hover,
+.dv-row-actions-menu button:hover {
+  background: var(--paper-band);
+}
+
+.menu-item-danger:hover,
+.dv-row-actions-delete:hover {
+  color: var(--warn);
+}
+
+/* ---------- dialogs ---------- */
+
+.dialog-overlay,
+.dv-overlay,
+.tb-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(43, 54, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.dialog,
+.dv-dialog,
+.tb-dialog {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(43, 54, 42, 0.25);
+}
+
+.dv-dialog {
+  max-width: 640px;
+}
+
+.dv-bulk-dialog {
+  max-width: 440px;
+}
+
+.dialog-header,
+.dv-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.dialog h2,
+.dv-dialog h2,
+.dv-bulk-dialog h2,
+.tb-dialog h2 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  margin: 0 0 var(--space-3) 0;
+}
+
+.dialog-close,
+.dv-close-edit {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 0 var(--space-3) 0;
+  cursor: pointer;
+}
+
+.dialog-close:hover,
+.dv-close-edit:hover {
+  color: var(--ink);
+}
+
+.dialog-actions,
+.dv-dialog-actions,
+.tb-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-overlay,
+  .dv-overlay,
+  .tb-overlay {
+    animation: overlay-fade-in 0.12s ease-out;
+  }
+}
+
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- badges / chips ---------- */
+
+.badge,
+.dv-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-error,
+.dv-cell-error {
+  display: inline-block;
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-radius: 4px;
+  padding: 1px var(--space-1);
+  font-weight: 600;
+}
+
+.badge.tint-0,
+.dv-badge.tint-0 {
+  background: #e5ebdc;
+  color: #42785c;
+}
+.badge.tint-1,
+.dv-badge.tint-1 {
+  background: #dce9ef;
+  color: #2b5f78;
+}
+.badge.tint-2,
+.dv-badge.tint-2 {
+  background: #f1e6d6;
+  color: #8a5a22;
+}
+.badge.tint-3,
+.dv-badge.tint-3 {
+  background: #ecdfe9;
+  color: #6c3f82;
+}
+.badge.tint-4,
+.dv-badge.tint-4 {
+  background: #f6ebe5;
+  color: #a35a3c;
+}
+.badge.tint-5,
+.dv-badge.tint-5 {
+  background: #e4e4e0;
+  color: #52524c;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius);
+  background: var(--paper-band);
+  border: 1px solid var(--rule);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+/* ---------- banners ---------- */
+
+.banner-error,
+.dv-error,
+.tb-error,
+.sv-error,
+.dv-import-errors {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  font-size: 14px;
+}
+
+.dv-import-errors p {
+  margin: 0;
+}
+
+.dv-import-errors ul {
+  margin: var(--space-2) 0 0 0;
+  padding-left: var(--space-5);
+}
+
+.dv-import-errors li {
+  margin-bottom: var(--space-1);
+}
+
+.banner-success,
+.dv-import-success,
+.tb-status {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+/* ---------- toast ---------- */
+
+.toast,
+.dv-toast {
+  position: fixed;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-shadow: 0 8px 24px rgba(43, 54, 42, 0.3);
+  z-index: 200;
+}
+
+.toast-action,
+.dv-toast-undo {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---------- ledger table (Templates columns editor, Summary table) ---------- */
+
+.ledger-table-wrap,
+.tb-table-wrap,
+.sv-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.ledger-table,
+.tb-table,
+.sv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ledger-table th,
+.tb-table th,
+.sv-table th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-muted);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+
+.ledger-table td,
+.tb-table td,
+.sv-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+
+.ledger-table tbody tr:nth-child(odd),
+.tb-table tbody tr:nth-child(odd),
+.sv-table tbody tr:nth-child(odd) {
+  background: var(--paper-band);
+}
+
+.ledger-numeric,
+.sv-numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ---------- sidebar list (template index, reused by Records/Summary) ---------- */
+
+.sidebar-list,
+.tb-sidebar-list,
+.sv-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.sidebar-item,
+.tb-sidebar-item,
+.sv-sidebar-item {
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-button,
+.tb-sidebar-button,
+.sv-sidebar-button {
+  display: block;
+  flex: 1;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) var(--space-1);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.sidebar-button:hover,
+.tb-sidebar-button:hover,
+.sv-sidebar-button:hover {
+  background: var(--paper-band);
+}
+
+.sidebar-button[aria-current="true"],
+.tb-sidebar-button[aria-current="true"],
+.sv-sidebar-button[aria-current="true"] {
+  border-left-color: var(--accent);
+  font-weight: 600;
+  background: var(--paper-band);
+}
+
+.sidebar-count {
+  color: var(--ink-muted);
+  font-size: 12px;
+  padding-right: var(--space-2);
+}

@@ -20,6 +20,25 @@
   gap: var(--space-2);
 }
 
+.app-theme-toggle {
+  margin-left: var(--space-2);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.app-theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .app-icon {
   color: var(--accent);
   flex: none;

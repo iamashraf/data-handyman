@@ -1,11 +1,8 @@
 /*
  * Summary view page — third page in the greenbar-ledger system. Reuses
- * src/styles/tokens.css verbatim (see that file's header, and
- * DataViewPage.css's header for the fuller rationale); the
- * sidebar/main-panel rules below are the same structure as
- * DataViewPage.css's .dv-sidebar / .dv-main, copied rather than extracted
- * (same deliberate non-sharing already noted between TemplateBuilderPage
- * and DataViewPage).
+ * src/styles/tokens.css and the shared chrome from
+ * src/styles/components.css (buttons, fields, sidebar list, ledger
+ * table) — only page-specific layout and the chart SVG live here.
  */
 
 .sv-page {
@@ -30,40 +27,6 @@
   font-weight: 600;
   color: var(--ink-muted);
   margin: 0 0 var(--space-2) 0;
-}
-
-.sv-sidebar-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--rule);
-}
-
-.sv-sidebar-item {
-  border-bottom: 1px solid var(--rule);
-}
-
-.sv-sidebar-button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: var(--space-2) var(--space-1);
-  font-size: 14px;
-  color: var(--ink);
-  cursor: pointer;
-  border-left: 3px solid transparent;
-}
-
-.sv-sidebar-button:hover {
-  background: var(--paper-band);
-}
-
-.sv-sidebar-button[aria-current="true"] {
-  border-left-color: var(--accent);
-  font-weight: 600;
-  background: var(--paper-band);
 }
 
 .sv-sidebar-error {
@@ -91,9 +54,8 @@
   margin: 0;
 }
 
-/* Group-by / metric pickers + export action — same field vocabulary as
-   DataViewPage's .dv-search input, same bordered-button vocabulary as its
-   .dv-toolbar-button, so this page's controls read as the same product. */
+/* Group-by / metric pickers + export action — same field/button
+   vocabulary as every other page, via components.css. */
 .sv-controls {
   display: flex;
   align-items: end;
@@ -103,56 +65,7 @@
 }
 
 .sv-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.sv-field span {
-  font-size: 13px;
-  color: var(--ink-muted);
-}
-
-.sv-field select {
-  font-family: var(--font-body);
-  font-size: 14px;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
-  min-width: 160px;
-}
-
-.sv-toolbar-button {
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-4);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  cursor: pointer;
-}
-
-.sv-toolbar-button:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.sv-toolbar-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.sv-error {
-  color: var(--warn);
-  background: var(--warn-bg);
-  border: 1px solid var(--warn);
-  border-radius: var(--radius);
-  padding: var(--space-3);
-  margin-bottom: var(--space-4);
-  font-size: 14px;
+  --select-width: 180px;
 }
 
 .sv-loading,
@@ -240,40 +153,6 @@
   font-family: var(--font-body);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-}
-
-/* Summary table: same ledger table as TemplateBuilderPage's .tb-table
-   (striped rows, ruled header), reused verbatim rather than reinvented. */
-.sv-table-wrap {
-  overflow-x: auto;
-}
-
-.sv-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.sv-table th {
-  text-align: left;
-  font-weight: 600;
-  color: var(--ink-muted);
-  border-bottom: 1px solid var(--rule);
-  padding: var(--space-2) var(--space-3);
-}
-
-.sv-table td {
-  border-bottom: 1px solid var(--rule);
-  padding: var(--space-2) var(--space-3);
-}
-
-.sv-table tbody tr:nth-child(odd) {
-  background: var(--paper-band);
-}
-
-.sv-numeric {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
 @media (max-width: 640px) {

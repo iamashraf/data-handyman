@@ -23,6 +23,7 @@ import {
 } from "../api/client";
 import type { ImportResult, RecordRead, TemplateColumn, TemplateRead } from "../api/types";
 import { DateInput } from "../components/DateInput";
+import { useTheme } from "../lib/ThemeContext";
 import {
   choiceTintClass,
   columnLabel,
@@ -38,7 +39,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 const SEARCH_DEBOUNCE_MS = 150;
 const COLUMN_STATE_PREFIX = "data-handyman:columns:";
 
-const gridTheme = themeQuartz.withParams({
+const GRID_FONT_FAMILY = '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+const gridThemeLight = themeQuartz.withParams({
   accentColor: "#42785c",
   backgroundColor: "#fbfbf7",
   foregroundColor: "#2b362a",
@@ -51,9 +54,38 @@ const gridTheme = themeQuartz.withParams({
   wrapperBorder: { color: "#c3cdb9" },
   wrapperBorderRadius: 7,
   cellTextColor: "#2b362a",
-  fontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-  cellFontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-  headerFontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  checkboxCheckedBackgroundColor: "#42785c",
+  checkboxCheckedBorderColor: "#42785c",
+  checkboxCheckedShapeColor: "#f8faf5",
+  checkboxUncheckedBorderColor: "#c3cdb9",
+  fontFamily: GRID_FONT_FAMILY,
+  cellFontFamily: GRID_FONT_FAMILY,
+  headerFontFamily: GRID_FONT_FAMILY,
+  spacing: 8,
+  rowHeight: 40,
+  headerHeight: 40,
+});
+
+const gridThemeDark = themeQuartz.withParams({
+  accentColor: "#5fa37e",
+  backgroundColor: "#242b25",
+  foregroundColor: "#e6ece2",
+  headerBackgroundColor: "#262f27",
+  headerTextColor: "#e6ece2",
+  headerFontWeight: 600,
+  oddRowBackgroundColor: "#242b25",
+  rowHoverColor: "#2c3630",
+  borderColor: "#3b463b",
+  wrapperBorder: { color: "#3b463b" },
+  wrapperBorderRadius: 7,
+  cellTextColor: "#e6ece2",
+  checkboxCheckedBackgroundColor: "#5fa37e",
+  checkboxCheckedBorderColor: "#5fa37e",
+  checkboxCheckedShapeColor: "#0f1d15",
+  checkboxUncheckedBorderColor: "#3b463b",
+  fontFamily: GRID_FONT_FAMILY,
+  cellFontFamily: GRID_FONT_FAMILY,
+  headerFontFamily: GRID_FONT_FAMILY,
   spacing: 8,
   rowHeight: 40,
   headerHeight: 40,
@@ -272,6 +304,7 @@ function RowActionsCell(
 }
 
 export function DataViewPage({ templateId }: DataViewPageProps) {
+  const theme = useTheme();
   const [templates, setTemplates] = useState<TemplateRead[]>([]);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [rowCounts, setRowCounts] = useState<Record<number, number>>({});
@@ -1161,7 +1194,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         ) : (
           <div className="dv-grid">
             <AgGridReact
-              theme={gridTheme}
+              theme={theme === "dark" ? gridThemeDark : gridThemeLight}
               rowData={rowData}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
@@ -1349,7 +1382,17 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
             </label>
             {createFromExcelError ? <p className="dv-error">{createFromExcelError}</p> : null}
             <div className="dv-dialog-actions">
-              <label className="dv-toolbar-button dv-import-label">
+              <button
+                type="button"
+                className="dv-cancel-edit"
+                onClick={() => {
+                  setNewTemplateDialogOpen(false);
+                  window.location.hash = "#/templates";
+                }}
+              >
+                Start blank
+              </button>
+              <label className="dv-save-edit dv-import-label">
                 {creatingFromExcel ? "Creating…" : "Import from Excel"}
                 <input
                   key={createFromExcelInputKey}
@@ -1360,16 +1403,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                   disabled={creatingFromExcel}
                 />
               </label>
-              <button
-                type="button"
-                className="dv-toolbar-button"
-                onClick={() => {
-                  setNewTemplateDialogOpen(false);
-                  window.location.hash = "#/templates";
-                }}
-              >
-                Start blank
-              </button>
             </div>
           </div>
         </div>

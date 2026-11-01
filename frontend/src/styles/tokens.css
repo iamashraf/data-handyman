@@ -44,6 +44,25 @@
   --radius: 7px;
 }
 
+/* Dark theme: same greenbar-ledger identity, inverted. Applied via a
+   data-theme attribute on <html>, set by App.tsx from the user's stored
+   choice (falling back to prefers-color-scheme) -- see src/lib/theme.ts.
+   Brightened --accent and darkened --accent-ink keep button/badge text
+   readable against the lighter green on a dark surface. */
+:root[data-theme="dark"] {
+  --paper: #1c221e;
+  --paper-band: #262f27;
+  --ink: #e6ece2;
+  --ink-muted: #9db098;
+  --rule: #3b463b;
+  --accent: #5fa37e;
+  --accent-ink: #0f1d15;
+  --warn: #d98a66;
+  --warn-ink: #2a1711;
+  --warn-bg: #3a2a21;
+  --surface: #242b25;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -69,6 +88,14 @@ body {
 
 button {
   font-family: inherit;
+}
+
+/* Plain HTML checkboxes (Columns menu, edit-in-form booleans) in the
+   accent green, instead of the browser's default blue -- AG-Grid's own
+   checkboxes are drawn separately and themed via gridTheme's checkbox*
+   params in DataViewPage.tsx. */
+input[type="checkbox"] {
+  accent-color: var(--accent);
 }
 
 :focus-visible {
