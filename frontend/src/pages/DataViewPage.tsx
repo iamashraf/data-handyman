@@ -129,17 +129,39 @@ function describeImportError(error: { row_number: number; reason: string }): str
   return `Row ${error.row_number}: ${error.reason}`;
 }
 
-/** Button cell renderer for the grid's trailing "delete this row" column. */
-function DeleteRowCell(params: ICellRendererParams & { onDelete?: (id: number) => void }) {
+/** Button cell renderer for the grid's trailing actions column: an
+ *  explicit Edit affordance (click-to-edit has no visual cue of its own,
+ *  so this gives every row a visible way in) plus the existing Delete. */
+function RowActionsCell(
+  params: ICellRendererParams & { onDelete?: (id: number) => void; firstEditableField?: string }
+) {
+  function handleEdit() {
+    const rowIndex = params.node.rowIndex;
+    if (params.firstEditableField == null || rowIndex == null) {
+      return;
+    }
+    params.api.startEditingCell({ rowIndex, colKey: params.firstEditableField });
+  }
   return (
-    <button
-      type="button"
-      className="dv-delete-row"
-      aria-label={`Delete row ${params.data.id}`}
-      onClick={() => params.onDelete?.(Number(params.data.id))}
-    >
-      Delete
-    </button>
+    <span className="dv-row-actions">
+      <button
+        type="button"
+        className="dv-edit-row"
+        aria-label={`Edit row ${params.data.id}`}
+        onClick={handleEdit}
+        disabled={params.firstEditableField == null}
+      >
+        Edit
+      </button>
+      <button
+        type="button"
+        className="dv-delete-row"
+        aria-label={`Delete row ${params.data.id}`}
+        onClick={() => params.onDelete?.(Number(params.data.id))}
+      >
+        Delete
+      </button>
+    </span>
   );
 }
 
@@ -262,17 +284,21 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
               ? "agCheckboxCellEditor"
               : undefined,
     }));
+    const firstEditableField = template.columns.find((col) => col.formula == null)?.name;
     const actionsColumn: ColDef = {
       colId: "__actions",
       headerName: "",
-      width: 100,
+      // No fixed width — sized to its actual rendered content (the two
+      // buttons) via autoSizeColumns below, instead of a guessed pixel
+      // value that would be wrong for different label lengths/locales.
+      suppressSizeToFit: true,
       pinned: "right",
       editable: false,
       sortable: false,
       filter: false,
       cellDataType: false,
-      cellRenderer: DeleteRowCell,
-      cellRendererParams: { onDelete: handleDeleteRow },
+      cellRenderer: RowActionsCell,
+      cellRendererParams: { onDelete: handleDeleteRow, firstEditableField },
     };
     return [...dataColumns, actionsColumn];
   }, [template]);
@@ -535,6 +561,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                   overlayNoRowsTemplate="No records yet."
                   onCellValueChanged={handleCellValueChanged}
                   singleClickEdit
+                  onFirstDataRendered={(event) => event.api.autoSizeColumns(["__actions"])}
+                  onGridReady={(event) => event.api.autoSizeColumns(["__actions"])}
                 />
               </div>
             </>

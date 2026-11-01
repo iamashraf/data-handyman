@@ -24,7 +24,10 @@
   display: flex;
   gap: var(--space-5);
   align-items: flex-start;
-  max-width: 1100px;
+  /* Unlike the template builder's form-style layout, this page is a data
+     grid — it needs real width to show its columns without cramming, so
+     it uses the viewport rather than a form-width cap. */
+  max-width: 1600px;
 }
 
 /* Sidebar: same plain ledger index as the template builder's .tb-sidebar. */
@@ -216,8 +219,15 @@
   font-size: 14px;
 }
 
-/* Per-row delete action in the grid's trailing column — same bordered,
-   warn-on-hover treatment as TemplateBuilderPage's .tb-remove-column. */
+/* Per-row actions in the grid's trailing column: an explicit Edit button
+   (click-to-edit has no affordance of its own, so this gives every row a
+   visible, discoverable way in) plus the existing Delete. */
+.dv-row-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.dv-edit-row,
 .dv-delete-row {
   background: none;
   border: 1px solid var(--rule);
@@ -226,6 +236,16 @@
   font-size: 13px;
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
+}
+
+.dv-edit-row:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.dv-edit-row:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .dv-delete-row:hover {
