@@ -5,7 +5,6 @@ import { AgGridReact, useGridCellEditor } from "ag-grid-react";
 import type { CustomCellEditorProps } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from "ag-grid-community";
 import type {
-  CellEditingStoppedEvent,
   CellValueChangedEvent,
   ColDef,
   ICellRendererParams,
@@ -94,12 +93,6 @@ const gridThemeDark = themeQuartz.withParams({
 
 interface DataViewPageProps {
   templateId?: number;
-}
-
-const TEMP_ROW_PREFIX = "new-";
-
-function isTempRowId(id: unknown): boolean {
-  return typeof id === "string" && id.startsWith(TEMP_ROW_PREFIX);
 }
 
 function defaultDraftValue(columnType: TemplateColumn["type"]): unknown {
@@ -329,11 +322,12 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const [creatingFromExcel, setCreatingFromExcel] = useState(false);
   const [createFromExcelError, setCreateFromExcelError] = useState<string | null>(null);
   const [createFromExcelInputKey, setCreateFromExcelInputKey] = useState(0);
-  const [editModalMode, setEditModalMode] = useState<"edit" | null>(null);
+  const [editModalMode, setEditModalMode] = useState<"edit" | "add" | null>(null);
   const [editingRecordId, setEditingRecordId] = useState<number | string | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, unknown>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [editSaveError, setEditSaveError] = useState<string | null>(null);
+  const [addedCount, setAddedCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState<(number | string)[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditColumn, setBulkEditColumn] = useState<string>("");
@@ -347,8 +341,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const gridApiRef = useRef<import("ag-grid-community").GridApi | null>(null);
   const selectedIdRef = useRef<number | undefined>(selectedId);
   selectedIdRef.current = selectedId;
-  const recordsRef = useRef<RecordRead[]>(records);
-  recordsRef.current = records;
   const latestRequest = useRef(0);
   const loadedTemplateId = useRef<number | undefined>(undefined);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
@@ -501,54 +493,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     setActiveFilterCount(Object.keys(api.getFilterModel() ?? {}).length);
   }
 
-  async function finalizeOrDiscardTempRow() {
-    const api = gridApiRef.current;
-    if (!api || api.getEditingCells().length > 0 || !template) return;
-    // Reads the ref, not the `records` state this closure was created
-    // with -- this runs from a cellEditingStopped event fired on the same
-    // row whose own cellValueChanged already updated `records`, and a
-    // plain closure over `records` here would still see the pre-edit
-    // snapshot from that earlier render.
-    const tempRecord = recordsRef.current.find((r) => isTempRowId(r.id));
-    if (!tempRecord) return;
-    const hasAnyValue = template.columns
-      .filter((c) => c.formula == null)
-      .some((c) => {
-        const v = tempRecord.data[c.name];
-        return v != null && v !== "" && v !== defaultDraftValue(c.type);
-      });
-    if (!hasAnyValue) {
-      setRecords((prev) => prev.filter((r) => r.id !== tempRecord.id));
-      return;
-    }
-    try {
-      const created = await createRecord(template.id, tempRecord.data);
-      setRecords((prev) => prev.map((r) => (r.id === tempRecord.id ? created : r)));
-      setRowCounts((prev) => ({ ...prev, [template.id]: (prev[template.id] ?? 0) + 1 }));
-    } catch (error) {
-      setGridError(error instanceof ApiError ? describeApiError(error) : "Couldn't add this row. Check your connection and try again.");
-      setRecords((prev) => prev.filter((r) => r.id !== tempRecord.id));
-    }
-  }
-
   async function handleCellValueChanged(event: CellValueChangedEvent) {
     const recordId = event.data.id;
-    if (isTempRowId(recordId)) {
-      // Held locally in `records` state until the editing session on this
-      // row ends -- see finalizeOrDiscardTempRow, triggered by
-      // onCellEditingStopped (handleCellEditingStopped below), which fires
-      // synchronously right after this, in the same tick, before React
-      // has re-rendered. recordsRef is updated here directly (not just
-      // via setRecords, which only lands in the ref on the next render)
-      // so that finalize sees this edit immediately instead of one edit
-      // behind.
-      const updated = recordsRef.current.map((r) =>
-        r.id === recordId ? { ...r, data: { ...r.data, [event.colDef.field!]: event.newValue } } : r
-      );
-      recordsRef.current = updated;
-      setRecords(updated);
-      return;
-    }
     const record = records.find((r) => r.id === recordId);
     if (!record) return;
     const field = event.colDef.field!;
@@ -562,11 +508,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       setRecords((prev) => prev.map((r) => (r.id === recordId ? { ...r, data: { ...r.data, [field]: previousValue } } : r)));
       showToast(error instanceof ApiError ? describeApiError(error) : "Couldn't save your change. Check your connection and try again.");
     }
-  }
-
-  function handleCellEditingStopped(event: CellEditingStoppedEvent) {
-    if (!isTempRowId(event.data.id)) return;
-    void finalizeOrDiscardTempRow();
   }
 
   const columnDefs = useMemo<ColDef[]>(() => {
@@ -755,31 +696,21 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     setEditSaveError(null);
   }
 
-  function handleAddRow() {
-    if (!template || selectedId == null) return;
+  function blankDraft(cols: TemplateColumn[]): Record<string, unknown> {
     const draft: Record<string, unknown> = {};
-    for (const column of template.columns) {
+    for (const column of cols) {
       if (column.formula == null) draft[column.name] = defaultDraftValue(column.type);
     }
-    const tempId = `${TEMP_ROW_PREFIX}${Date.now()}`;
-    const tempRecord: RecordRead = {
-      id: tempId as unknown as number,
-      template_id: template.id,
-      data: draft,
-      computed: {},
-      created_at: "",
-      updated_at: "",
-    };
-    setRecords((prev) => [tempRecord, ...prev]);
-    window.setTimeout(() => {
-      const api = gridApiRef.current;
-      if (!api || !template) return;
-      const firstEditable = template.columns.find((c) => c.formula == null);
-      if (firstEditable) {
-        api.ensureIndexVisible(0);
-        api.startEditingCell({ rowIndex: 0, colKey: firstEditable.name });
-      }
-    }, 0);
+    return draft;
+  }
+
+  function handleOpenAdd() {
+    if (!template || selectedId == null) return;
+    setEditModalMode("add");
+    setEditingRecordId(null);
+    setEditDraft(blankDraft(template.columns));
+    setEditSaveError(null);
+    setAddedCount(0);
   }
 
   function handleDuplicateRow(recordId: number | string) {
@@ -837,7 +768,26 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   }
 
   async function handleSaveEdit() {
-    if (!template || editingRecordId == null) return;
+    if (!template) return;
+    if (editModalMode === "add") {
+      setSavingEdit(true);
+      setEditSaveError(null);
+      try {
+        const created = await createRecord(template.id, editDraft);
+        setRecords((prev) => [created, ...prev]);
+        setRowCounts((prev) => ({ ...prev, [template.id]: (prev[template.id] ?? 0) + 1 }));
+        setAddedCount((prev) => prev + 1);
+        setEditDraft(blankDraft(template.columns));
+      } catch (error) {
+        setEditSaveError(
+          error instanceof ApiError ? describeApiError(error) : "Couldn't add this row. Check your connection and try again."
+        );
+      } finally {
+        setSavingEdit(false);
+      }
+      return;
+    }
+    if (editingRecordId == null) return;
     const record = records.find((r) => r.id === editingRecordId);
     if (!record) return;
     setSavingEdit(true);
@@ -1167,7 +1117,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
           ) : null}
         </div>
 
-        <button type="button" className="dv-add-row-primary" onClick={handleAddRow} disabled={selectedId == null}>
+        <button type="button" className="dv-add-row-primary" onClick={handleOpenAdd} disabled={selectedId == null}>
           + Add row
         </button>
       </div>
@@ -1214,7 +1164,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
           <div className="dv-empty-state">
             <p>No rows yet</p>
             <div className="dv-empty-state-actions">
-              <button type="button" className="dv-toolbar-button" onClick={handleAddRow}>
+              <button type="button" className="dv-toolbar-button" onClick={handleOpenAdd}>
                 Add row
               </button>
               <label className="dv-empty-state-import">
@@ -1243,6 +1193,15 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                 suppressHeaderMenuButton: true,
               }}
               suppressRowClickSelection
+              // Column names are the template's own field names verbatim
+              // (e.g. "S.NO", "Door No.") and may contain literal dots --
+              // without this, AG Grid's default field resolution treats a
+              // dotted `field` as a nested-property path ("S.NO" -> row.S.NO
+              // instead of row["S.NO"]), which blanks the cell's display and,
+              // on edit, computes newValue as undefined -- a value that's
+              // silently dropped by JSON.stringify, so the saved record
+              // loses that column entirely instead of keeping its old value.
+              suppressFieldDotNotation
               quickFilterText={quickFilter}
               debounceVerticalScrollbar
               animateRows
@@ -1255,7 +1214,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
               onModelUpdated={() => refreshCounters()}
               onSelectionChanged={(event) => setSelectedRowIds(event.api.getSelectedRows().map((r) => r.id))}
               onCellValueChanged={handleCellValueChanged}
-              onCellEditingStopped={handleCellEditingStopped}
               onColumnMoved={persistColumnState}
               onColumnResized={(e) => { if (e.finished) persistColumnState(); }}
               onColumnVisible={persistColumnState}
@@ -1274,11 +1232,16 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         )}
       </div>
 
-      {editModalMode && template && editingRecordId != null ? (
+      {template && (editModalMode === "add" || (editModalMode === "edit" && editingRecordId != null)) ? (
         <div className="dv-overlay" onKeyDown={handleEditDialogKeyDown}>
           <div className="dv-dialog" role="dialog" aria-modal="true" aria-labelledby="dv-edit-title">
             <div className="dv-dialog-header">
-              <h2 id="dv-edit-title">Edit row</h2>
+              <h2 id="dv-edit-title">
+                {editModalMode === "add" ? "Add row" : "Edit row"}
+                {editModalMode === "add" && addedCount > 0 ? (
+                  <span className="dv-added-count"> — {addedCount} added</span>
+                ) : null}
+              </h2>
               <button type="button" className="dv-close-edit" onClick={handleCloseEdit} disabled={savingEdit} aria-label="Close">
                 ×
               </button>
@@ -1286,12 +1249,17 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
             <div className="dv-edit-fields">
               {template.columns.map((col) => {
                 const isFormula = col.formula != null;
-                const record = records.find((r) => r.id === editingRecordId);
+                const record = editModalMode === "edit" ? records.find((r) => r.id === editingRecordId) : undefined;
                 return (
                   <label key={col.name} className="dv-field">
                     <span className="dv-search-label">{columnLabel(col)}</span>
                     {isFormula ? (
-                      <input type="text" readOnly value={record ? String(record.computed[col.name] ?? "") : ""} className="dv-field-readonly" />
+                      <input
+                        type="text"
+                        readOnly
+                        value={editModalMode === "add" ? "Computed after saving" : record ? String(record.computed[col.name] ?? "") : ""}
+                        className="dv-field-readonly"
+                      />
                     ) : col.type === "boolean" ? (
                       <input
                         type="checkbox"
@@ -1338,10 +1306,10 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
             {editSaveError ? <p className="dv-error">{editSaveError}</p> : null}
             <div className="dv-dialog-actions">
               <button type="button" className="dv-cancel-edit" onClick={handleCloseEdit} disabled={savingEdit}>
-                Cancel
+                {editModalMode === "add" ? "Done" : "Cancel"}
               </button>
               <button type="button" className="dv-save-edit" onClick={handleSaveEdit} disabled={savingEdit}>
-                {savingEdit ? "Saving…" : "Save"}
+                {savingEdit ? "Saving…" : editModalMode === "add" ? "Save & add another" : "Save"}
               </button>
             </div>
           </div>

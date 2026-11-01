@@ -384,6 +384,13 @@ textarea.input {
   margin: 0 0 var(--space-3) 0;
 }
 
+.dv-added-count {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
 .dialog-close,
 .dv-close-edit {
   background: none;
