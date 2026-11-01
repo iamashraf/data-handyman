@@ -50,17 +50,23 @@
    Brightened --accent and darkened --accent-ink keep button/badge text
    readable against the lighter green on a dark surface. */
 :root[data-theme="dark"] {
-  --paper: #1c221e;
-  --paper-band: #262f27;
-  --ink: #e6ece2;
-  --ink-muted: #9db098;
-  --rule: #3b463b;
-  --accent: #5fa37e;
-  --accent-ink: #0f1d15;
-  --warn: #d98a66;
+  /* Neutral charcoal grays, not an olive tint -- when every surface
+     leans green, the accent stops reading as "the" color and the whole
+     page looks muddy/monochrome. Keeping the neutrals genuinely neutral
+     makes the accent pop the way it's supposed to, and brightening it
+     (vs. light mode's muted sage) gives it a real pop against the dark
+     background instead of blending in. */
+  --paper: #17191a;
+  --paper-band: #212426;
+  --ink: #e9ece9;
+  --ink-muted: #9aa3a0;
+  --rule: #34393b;
+  --accent: #34d17a;
+  --accent-ink: #06240f;
+  --warn: #f0975a;
   --warn-ink: #2a1711;
   --warn-bg: #3a2a21;
-  --surface: #242b25;
+  --surface: #1e2123;
 }
 
 * {
