@@ -118,7 +118,7 @@ describe("DataViewPage", () => {
     expect(await screen.findByText(/couldn.t load/i)).toBeInTheDocument();
   });
 
-  it("saves an inline edit by sending the record's full data, not just the changed field", async () => {
+  it("saves an edit via the Edit button's form, sending the record's full data, not just the changed field", async () => {
     vi.mocked(listRecords).mockResolvedValueOnce([
       { id: 1, template_id: 1, data: { a: 5, b: 2 }, computed: { ratio: 2.5 }, created_at: "", updated_at: "" },
     ]);
@@ -131,26 +131,35 @@ describe("DataViewPage", () => {
       updated_at: "",
     });
     render(<DataViewPage templateId={1} />);
-    const cell = await screen.findByText("5");
-    await userEvent.dblClick(cell);
-    const editor = await screen.findByRole("spinbutton");
-    await userEvent.clear(editor);
-    await userEvent.type(editor, "9");
-    await userEvent.keyboard("{Enter}");
+    await userEvent.click(await screen.findByRole("button", { name: /edit row 1/i }));
+    const fieldA = await screen.findByLabelText("a");
+    await userEvent.clear(fieldA);
+    await userEvent.type(fieldA, "9");
+    await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(updateRecord).toHaveBeenCalledWith(1, { a: 9, b: 2 }));
     expect(await screen.findByText("4.5")).toBeInTheDocument();
+    // The dialog closes after a successful save.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("saves an inline edit on a row created via Add row (the row didn't exist in records state at mount)", async () => {
+  it("a single click on a grid cell never changes anything -- the grid is view-only outside the Edit form", async () => {
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { a: 5, b: 2 }, computed: { ratio: 2.5 }, created_at: "", updated_at: "" },
+    ]);
+    render(<DataViewPage templateId={1} />);
+    const cell = await screen.findByText("5");
+    await userEvent.click(cell);
+    await userEvent.dblClick(cell);
+    // The grid value is unchanged and no save was ever triggered -- not
+    // checking for the absence of a spinbutton role, since AG-Grid's own
+    // pagination control (page-number input) also uses that role and
+    // would make this assertion a false positive.
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(updateRecord).not.toHaveBeenCalled();
+  });
+
+  it("opens the same form for Add row, with blank defaults, and creates the record with the entered values", async () => {
     vi.mocked(createRecord).mockResolvedValueOnce({
-      id: 2,
-      template_id: 1,
-      data: {},
-      computed: { ratio: "#VALUE!" },
-      created_at: "",
-      updated_at: "",
-    });
-    vi.mocked(updateRecord).mockResolvedValueOnce({
       id: 2,
       template_id: 1,
       data: { a: 9, b: null },
@@ -161,28 +170,18 @@ describe("DataViewPage", () => {
     render(<DataViewPage templateId={1} />);
     await screen.findByRole("grid");
     await userEvent.click(screen.getByRole("button", { name: /add row/i }));
-    await waitFor(() => expect(createRecord).toHaveBeenCalledWith(1, {}));
-
-    // Column order is a, b, ratio, then the trailing delete-action column.
-    const cells = await screen.findAllByRole("gridcell");
-    await userEvent.dblClick(cells[0]);
-    const editor = await screen.findByRole("spinbutton");
-    await userEvent.type(editor, "9");
-    await userEvent.keyboard("{Enter}");
-    await waitFor(() => expect(updateRecord).toHaveBeenCalledWith(2, expect.objectContaining({ a: 9 })));
+    const fieldA = await screen.findByLabelText("a");
+    await userEvent.type(fieldA, "9");
+    await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    // Nothing is created until Save -- not an immediate blank createRecord({}).
+    await waitFor(() => expect(createRecord).toHaveBeenCalledWith(1, { a: 9, b: null }));
+    expect(await screen.findByText("#VALUE!")).toBeInTheDocument();
   });
 
-  it("keeps an edited field's new value when a second field on the same row is edited before the first save resolves", async () => {
+  it("saves both fields in one request when two fields are changed in the same modal session", async () => {
     vi.mocked(listRecords).mockResolvedValueOnce([
       { id: 1, template_id: 1, data: { a: 5, b: 2 }, computed: { ratio: 2.5 }, created_at: "", updated_at: "" },
     ]);
-    let resolveFirstSave!: (value: Awaited<ReturnType<typeof updateRecord>>) => void;
-    vi.mocked(updateRecord).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          resolveFirstSave = resolve;
-        })
-    );
     vi.mocked(updateRecord).mockResolvedValueOnce({
       id: 1,
       template_id: 1,
@@ -191,52 +190,33 @@ describe("DataViewPage", () => {
       created_at: "",
       updated_at: "",
     });
-
     render(<DataViewPage templateId={1} />);
-    const cellA = await screen.findByText("5");
-    await userEvent.dblClick(cellA);
-    const editorA = await screen.findByRole("spinbutton");
-    await userEvent.clear(editorA);
-    await userEvent.type(editorA, "9");
-    await userEvent.keyboard("{Enter}");
-    await waitFor(() => expect(updateRecord).toHaveBeenCalledTimes(1)); // first save still in flight, unresolved
-
-    const cellB = await screen.findByText("2");
-    await userEvent.dblClick(cellB);
-    const editorB = await screen.findByRole("spinbutton");
-    await userEvent.clear(editorB);
-    await userEvent.type(editorB, "8");
-    await userEvent.keyboard("{Enter}");
-
-    await waitFor(() => expect(updateRecord).toHaveBeenCalledTimes(2));
-    // The second save must carry the first edit's new value (a: 9), not
-    // the pre-edit value still sitting in `records` state at this point.
-    expect(updateRecord).toHaveBeenNthCalledWith(2, 1, expect.objectContaining({ a: 9, b: 8 }));
-
-    resolveFirstSave({
-      id: 1,
-      template_id: 1,
-      data: { a: 9, b: 2 },
-      computed: { ratio: 4.5 },
-      created_at: "",
-      updated_at: "",
-    });
+    await userEvent.click(await screen.findByRole("button", { name: /edit row 1/i }));
+    const fieldA = await screen.findByLabelText("a");
+    await userEvent.clear(fieldA);
+    await userEvent.type(fieldA, "9");
+    const fieldB = await screen.findByLabelText("b");
+    await userEvent.clear(fieldB);
+    await userEvent.type(fieldB, "8");
+    await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(updateRecord).toHaveBeenCalledTimes(1));
+    expect(updateRecord).toHaveBeenCalledWith(1, { a: 9, b: 8 });
   });
 
-  it("adds a new row via the Add row action, calling createRecord", async () => {
-    vi.mocked(createRecord).mockResolvedValueOnce({
-      id: 2,
-      template_id: 1,
-      data: {},
-      computed: { ratio: "#VALUE!" },
-      created_at: "",
-      updated_at: "",
-    });
+  it("Cancel closes the edit form without saving", async () => {
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { a: 5, b: 2 }, computed: { ratio: 2.5 }, created_at: "", updated_at: "" },
+    ]);
     render(<DataViewPage templateId={1} />);
-    await screen.findByRole("grid");
-    await userEvent.click(screen.getByRole("button", { name: /add row/i }));
-    await waitFor(() => expect(createRecord).toHaveBeenCalledWith(1, {}));
-    expect(await screen.findByText("#VALUE!")).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: /edit row 1/i }));
+    const fieldA = await screen.findByLabelText("a");
+    await userEvent.clear(fieldA);
+    await userEvent.type(fieldA, "999");
+    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(updateRecord).not.toHaveBeenCalled();
+    // The grid still shows the original, unchanged value.
+    expect(screen.getByText("5")).toBeInTheDocument();
   });
 
   it("deletes a row via its per-row delete action, calling deleteRecord", async () => {

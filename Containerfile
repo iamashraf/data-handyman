@@ -8,7 +8,7 @@
 #   podman run --rm -d -p 8000:8000 -v handy-recorder-data:/data \
 #     --name handy-recorder handy-recorder
 
-FROM node:22-slim AS frontend-build
+FROM node:26-slim AS frontend-build
 
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./

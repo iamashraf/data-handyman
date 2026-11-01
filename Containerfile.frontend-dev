@@ -9,7 +9,7 @@
 # Run the dev server (reloads on changes in frontend/):
 #   podman run --rm -p 5173:5173 -v $(pwd)/frontend:/app -w /app handy-recorder-frontend-dev
 
-FROM node:22-slim
+FROM node:26-slim
 
 # Keep node_modules outside /app. The frontend/ bind mount hides anything under /app,
 # and npm's script runner (and Node's module resolution) walk up from the cwd looking

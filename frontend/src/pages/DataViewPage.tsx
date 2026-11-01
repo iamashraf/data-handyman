@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from "ag-grid-community";
-import type { CellValueChangedEvent, ColDef, ICellRendererParams } from "ag-grid-community";
+import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import {
   ApiError,
   createRecord,
@@ -134,23 +134,15 @@ function describeImportError(error: { row_number: number; reason: string }): str
  *  explicit Edit affordance (click-to-edit has no visual cue of its own,
  *  so this gives every row a visible way in) plus the existing Delete. */
 function RowActionsCell(
-  params: ICellRendererParams & { onDelete?: (id: number) => void; firstEditableField?: string }
+  params: ICellRendererParams & { onDelete?: (id: number) => void; onEdit?: (id: number) => void }
 ) {
-  function handleEdit() {
-    const rowIndex = params.node.rowIndex;
-    if (params.firstEditableField == null || rowIndex == null) {
-      return;
-    }
-    params.api.startEditingCell({ rowIndex, colKey: params.firstEditableField });
-  }
   return (
     <span className="dv-row-actions">
       <button
         type="button"
         className="dv-edit-row"
         aria-label={`Edit row ${params.data.id}`}
-        onClick={handleEdit}
-        disabled={params.firstEditableField == null}
+        onClick={() => params.onEdit?.(Number(params.data.id))}
       >
         Edit
       </button>
@@ -190,6 +182,11 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const [creatingFromExcel, setCreatingFromExcel] = useState(false);
   const [createFromExcelError, setCreateFromExcelError] = useState<string | null>(null);
   const [createFromExcelInputKey, setCreateFromExcelInputKey] = useState(0);
+  const [editModalMode, setEditModalMode] = useState<"edit" | "create" | null>(null);
+  const [editingRecordId, setEditingRecordId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<Record<string, unknown>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editSaveError, setEditSaveError] = useState<string | null>(null);
 
   const latestRequest = useRef(0);
   const loadedTemplateId = useRef<number | undefined>(undefined);
@@ -287,30 +284,24 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     const dataColumns: ColDef[] = template.columns
       .filter((col) => !hiddenColumns.has(col.name))
       .map((col) => ({
-      field: col.name,
-      headerName: col.name,
-      flex: 1,
-      minWidth: 120,
-      // Disable AG-Grid's automatic value-based cell data typing (which
-      // otherwise swaps in its own built-in checkbox renderer for boolean
-      // values), so every column uniformly goes through ValueCell below.
-      cellDataType: false,
-      cellClass: col.type === "number" ? "dv-numeric" : undefined,
-      cellRendererParams: { columnType: col.type },
-      // A formula column is computed by the backend from other columns —
-      // editing it directly would just be overwritten on the next fetch,
-      // so only non-formula columns are editable.
-      editable: col.formula == null,
-      cellEditor:
-        col.formula != null
-          ? undefined
-          : col.type === "number"
-            ? "agNumberCellEditor"
-            : col.type === "boolean"
-              ? "agCheckboxCellEditor"
-              : undefined,
-    }));
-    const firstEditableField = template.columns.find((col) => col.formula == null)?.name;
+        field: col.name,
+        headerName: col.name,
+        flex: 1,
+        minWidth: 120,
+        // Disable AG-Grid's automatic value-based cell data typing (which
+        // otherwise swaps in its own built-in checkbox renderer for
+        // boolean values), so every column uniformly goes through
+        // ValueCell below.
+        cellDataType: false,
+        cellClass: col.type === "number" ? "dv-numeric" : undefined,
+        cellRendererParams: { columnType: col.type },
+        // The grid is read-only display; all editing goes through the
+        // Edit button's modal form (see RowActionsCell/handleOpenEdit) —
+        // a deliberate action, not a click/double-click on a cell that's
+        // easy to trigger by accident, and one place to edit every field
+        // regardless of how many columns are scrolled off-screen.
+        editable: false,
+      }));
     const actionsColumn: ColDef = {
       colId: "__actions",
       headerName: "",
@@ -324,7 +315,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
       filter: false,
       cellDataType: false,
       cellRenderer: RowActionsCell,
-      cellRendererParams: { onDelete: handleDeleteRow, firstEditableField },
+      cellRendererParams: { onDelete: handleDeleteRow, onEdit: handleOpenEdit },
     };
     return [...dataColumns, actionsColumn];
   }, [template, hiddenColumns]);
@@ -362,56 +353,107 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     });
   }
 
-  /** Commits one edited cell: PUTs the row's whole data, since the
-   *  backend's update replaces a record's data wholesale rather than
-   *  merging a partial patch — sending only the changed field would
-   *  silently wipe out every other column on that row.
-   *
-   *  The full payload is read from `event.data` (the grid's own, already-
-   *  mutated row object), not from `records` state. `records` state only
-   *  catches up after a previous edit's PUT resolves, so editing a second
-   *  field on the same row before the first save finishes would otherwise
-   *  read stale data and undo the first edit; `event.data` always reflects
-   *  every edit made so far in the browser, independent of that race. It
-   *  also has no dependency on the row already existing in `records`
-   *  state, which matters for a brand-new row added via "+ Add row". */
-  function handleCellValueChanged(event: CellValueChangedEvent) {
-    const field = event.colDef.field;
-    if (!field || !template) {
-      return;
-    }
-    const recordId = Number(event.data.id);
-    const record = records.find((r) => r.id === recordId);
-    if (record && record.data[field] === event.newValue) {
-      // Already matches the last known-good value — either a no-op edit,
-      // or this call is itself the revert below, so don't loop.
-      return;
-    }
-    setGridError(null);
-    const data: Record<string, unknown> = {};
-    for (const column of template.columns) {
-      if (column.formula == null) {
-        data[column.name] = event.data[column.name] ?? null;
-      }
-    }
-    updateRecord(recordId, data)
-      .then((updated) => {
-        setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-      })
-      .catch(() => {
-        setGridError("Couldn't save your change. Check your connection and try again.");
-        event.node.setDataValue(field, record ? record.data[field] ?? null : event.oldValue ?? null);
-      });
+  /** Default value for a blank "Add row" draft, per column type — a
+   *  checkbox needs a real boolean to render, everything else is fine
+   *  starting empty/null. */
+  function defaultDraftValue(columnType: TemplateColumn["type"]): unknown {
+    return columnType === "boolean" ? false : null;
   }
 
-  function handleAddRow() {
-    if (selectedId == null) {
+  /** Opens the edit form for one existing row, seeded with its current
+   *  raw values (formula columns are never editable, so they're left out
+   *  of the draft entirely). */
+  function handleOpenEdit(recordId: number) {
+    const record = records.find((r) => r.id === recordId);
+    if (!record || !template) {
       return;
     }
-    setGridError(null);
-    createRecord(selectedId, {})
-      .then((created) => setRecords((prev) => [...prev, created]))
-      .catch(() => setGridError("Couldn't add a new row. Check your connection and try again."));
+    const draft: Record<string, unknown> = {};
+    for (const column of template.columns) {
+      if (column.formula == null) {
+        draft[column.name] = record.data[column.name] ?? null;
+      }
+    }
+    setEditModalMode("edit");
+    setEditingRecordId(recordId);
+    setEditDraft(draft);
+    setEditSaveError(null);
+  }
+
+  /** Opens the same form for a brand-new row — "Add row" benefits from
+   *  the same full-fields popup as editing, instead of silently creating
+   *  an empty record and leaving every field blank until a separate Edit
+   *  click. Nothing is created on the backend until Save. */
+  function handleOpenAddRow() {
+    if (selectedId == null || !template) {
+      return;
+    }
+    const draft: Record<string, unknown> = {};
+    for (const column of template.columns) {
+      if (column.formula == null) {
+        draft[column.name] = defaultDraftValue(column.type);
+      }
+    }
+    setEditModalMode("create");
+    setEditingRecordId(null);
+    setEditDraft(draft);
+    setEditSaveError(null);
+  }
+
+  function handleCloseEdit() {
+    setEditModalMode(null);
+  }
+
+  function handleEditFieldChange(fieldName: string, value: unknown) {
+    setEditDraft((prev) => ({ ...prev, [fieldName]: value }));
+  }
+
+  /** Saves the whole draft as one request — for an edit, a PUT with the
+   *  full data (the backend replaces a record's data wholesale, not a
+   *  partial patch); for a new row, a POST creating it for the first
+   *  time. */
+  async function handleSaveEdit() {
+    if (editModalMode === "edit" && editingRecordId != null) {
+      setSavingEdit(true);
+      setEditSaveError(null);
+      try {
+        const updated = await updateRecord(editingRecordId, editDraft);
+        setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        setEditModalMode(null);
+      } catch (error) {
+        setEditSaveError(
+          error instanceof ApiError
+            ? describeApiError(error)
+            : "Couldn't save your change. Check your connection and try again."
+        );
+      } finally {
+        setSavingEdit(false);
+      }
+      return;
+    }
+    if (editModalMode === "create" && selectedId != null) {
+      setSavingEdit(true);
+      setEditSaveError(null);
+      try {
+        const created = await createRecord(selectedId, editDraft);
+        setRecords((prev) => [...prev, created]);
+        setEditModalMode(null);
+      } catch (error) {
+        setEditSaveError(
+          error instanceof ApiError
+            ? describeApiError(error)
+            : "Couldn't add this row. Check your connection and try again."
+        );
+      } finally {
+        setSavingEdit(false);
+      }
+    }
+  }
+
+  function handleEditDialogKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      handleCloseEdit();
+    }
   }
 
   function handleDeleteRow(recordId: number) {
@@ -585,7 +627,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
           </div>
 
           <div className="dv-actions">
-            <button type="button" className="dv-add-row" onClick={handleAddRow} disabled={selectedId == null}>
+            <button type="button" className="dv-add-row" onClick={handleOpenAddRow} disabled={selectedId == null}>
               + Add row
             </button>
             {template && template.columns.length > 0 ? (
@@ -681,7 +723,8 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                 </p>
               ) : null}
               <p className="dv-hint">
-                Click a cell to edit it. Use the Delete button at the end of a row to remove it.
+                Use the Edit button at the end of a row to change its values in a form. The grid itself is
+                view-only, so nothing changes from a stray click.
               </p>
               <div className="dv-grid">
                 <AgGridReact
@@ -691,8 +734,9 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                   defaultColDef={defaultColDef}
                   getRowId={(params) => String(params.data.id)}
                   overlayNoRowsTemplate="No records yet."
-                  onCellValueChanged={handleCellValueChanged}
-                  singleClickEdit
+                  pagination
+                  paginationPageSize={25}
+                  paginationPageSizeSelector={[25, 50, 100]}
                   onFirstDataRendered={(event) => event.api.autoSizeColumns(["__actions"])}
                   onGridReady={(event) => event.api.autoSizeColumns(["__actions"])}
                 />
@@ -701,6 +745,64 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
           )}
         </main>
       </div>
+
+      {editModalMode && template ? (
+        <div className="dv-overlay" onKeyDown={handleEditDialogKeyDown}>
+          <div
+            className="dv-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dv-edit-title"
+          >
+            <h2 id="dv-edit-title">{editModalMode === "create" ? "Add row" : "Edit row"}</h2>
+            <div className="dv-edit-fields">
+              {template.columns
+                .filter((col) => col.formula == null)
+                .map((col) => (
+                  <label key={col.name} className="dv-field">
+                    <span className="dv-search-label">{col.name}</span>
+                    {col.type === "boolean" ? (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editDraft[col.name])}
+                        onChange={(e) => handleEditFieldChange(col.name, e.target.checked)}
+                      />
+                    ) : col.type === "number" ? (
+                      <input
+                        type="number"
+                        value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
+                        onChange={(e) =>
+                          handleEditFieldChange(col.name, e.target.value === "" ? null : Number(e.target.value))
+                        }
+                      />
+                    ) : col.type === "date" ? (
+                      <input
+                        type="date"
+                        value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
+                        onChange={(e) => handleEditFieldChange(col.name, e.target.value || null)}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
+                        onChange={(e) => handleEditFieldChange(col.name, e.target.value)}
+                      />
+                    )}
+                  </label>
+                ))}
+            </div>
+            {editSaveError ? <p className="dv-error">{editSaveError}</p> : null}
+            <div className="dv-dialog-actions">
+              <button type="button" className="dv-cancel-edit" onClick={handleCloseEdit} disabled={savingEdit}>
+                Cancel
+              </button>
+              <button type="button" className="dv-save-edit" onClick={handleSaveEdit} disabled={savingEdit}>
+                {savingEdit ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
