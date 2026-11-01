@@ -1,12 +1,20 @@
-# Production container for the backend (backend-only for now — Plan 2 will
-# extend this to a multi-stage build that also builds the frontend).
+# Production container for the full stack: FastAPI serves both the API
+# and the frontend's built static files from one process, one port.
 #
 # Build:
-#   podman build -t handy-recorder-backend .
+#   podman build -t handy-recorder .
 #
 # Run (with a named volume so data persists across restarts):
 #   podman run --rm -d -p 8000:8000 -v handy-recorder-data:/data \
-#     --name hr-backend handy-recorder-backend
+#     --name handy-recorder handy-recorder
+
+FROM node:22-slim AS frontend-build
+
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
 
 FROM python:3.12-slim
 
@@ -19,6 +27,7 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --locked --no-dev
 
 COPY backend/app ./app
+COPY --from=frontend-build /app/dist ./static
 
 RUN mkdir -p /data
 
