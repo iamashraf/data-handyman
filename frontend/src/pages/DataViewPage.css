@@ -1,155 +1,123 @@
 /*
- * Data view page — reuses the greenbar-ledger tokens from
- * src/styles/tokens.css (established by TemplateBuilderPage). See that
- * file's header comment for the full design rationale. This page adds no
- * new colors or typefaces: the sidebar/panel structure below mirrors
- * TemplateBuilderPage.css's .tb-sidebar / .tb-main pattern so the two pages
- * read as one product, not two.
+ * Data view page — full-page records grid. Reuses the greenbar-ledger
+ * tokens from src/styles/tokens.css. No left sidebar: the template
+ * switcher lives as a dropdown in the top-right so the grid gets the
+ * whole width and most of the viewport height.
  */
 
 .dv-page {
-  min-height: 100vh;
-  padding: var(--space-6) var(--space-5);
-}
-
-.dv-layout {
-  display: flex;
-  gap: var(--space-5);
-  align-items: flex-start;
-  /* Unlike the template builder's form-style layout, this page is a data
-     grid — it needs real width to show its columns without cramming, so
-     it uses the viewport rather than a form-width cap. */
-  max-width: 1600px;
-}
-
-/* Sidebar: same plain ledger index as the template builder's .tb-sidebar. */
-.dv-sidebar {
-  flex: 0 0 200px;
-}
-
-.dv-sidebar h2 {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.dv-sidebar-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--rule);
-}
-
-.dv-sidebar-item {
-  border-bottom: 1px solid var(--rule);
-}
-
-.dv-sidebar-button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: var(--space-2) var(--space-1);
-  font-size: 14px;
-  color: var(--ink);
-  cursor: pointer;
-  border-left: 3px solid transparent;
-}
-
-.dv-sidebar-button:hover {
-  background: var(--paper-band);
-}
-
-.dv-sidebar-button[aria-current="true"] {
-  border-left-color: var(--accent);
-  font-weight: 600;
-  background: var(--paper-band);
-}
-
-.dv-sidebar-error {
-  color: var(--warn);
-  font-size: 13px;
-}
-
-/* "Create from Excel" — same field/button vocabulary as
-   TemplateBuilderPage's .tb-field and this page's own .dv-toolbar-button,
-   so a third entry point into the app still reads as the same product. */
-.dv-create-from-excel {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-}
-
-.dv-create-from-excel h2 {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.dv-field {
+  height: calc(100vh - 96px);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  margin-bottom: var(--space-2);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  box-sizing: border-box;
 }
 
-.dv-field input[type="text"] {
-  font-family: var(--font-body);
-  font-size: 14px;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
-}
-
-.dv-field input[type="text"]:focus-visible {
-  background: var(--surface);
-}
-
-.dv-field-hint {
-  font-size: 12px;
-  color: var(--ink-muted);
-}
-
-.dv-create-from-excel-button {
-  width: 100%;
-  text-align: center;
-  margin-bottom: var(--space-2);
-}
-
-/* Main panel */
-.dv-main {
-  flex: 1;
-  min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-}
-
-.dv-toolbar {
+.dv-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   flex-wrap: wrap;
 }
 
-.dv-toolbar h2 {
+.dv-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.dv-title-group h2 {
   font-family: var(--font-heading);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 600;
   margin: 0;
 }
 
+.dv-row-count,
+.dv-row-count-chip {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.dv-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dv-template-dropdown {
+  position: relative;
+}
+
+.dv-template-dropdown-button {
+  min-width: 180px;
+  text-align: left;
+}
+
+.dv-template-dropdown-panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(32, 43, 35, 0.18);
+  overflow: hidden;
+}
+
+.dv-template-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-3);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dv-template-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dv-template-dropdown-item:hover {
+  background: var(--paper-band);
+}
+
+.dv-template-dropdown-item[aria-selected="true"] {
+  font-weight: 600;
+  background: var(--paper-band);
+}
+
+.dv-template-dropdown-count {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+/* Toolbar: all controls same height/radius/font size. */
+.dv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.dv-toolbar-spacer {
+  flex: 1;
+}
+
 .dv-search {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -163,54 +131,81 @@
 .dv-search input {
   font-family: var(--font-body);
   font-size: 14px;
-  padding: var(--space-2) var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-6) 0 var(--space-3);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--paper);
   color: var(--ink);
-  min-width: 200px;
+  min-width: 220px;
+  box-sizing: border-box;
 }
 
 .dv-search input:focus-visible {
   background: var(--surface);
 }
 
-/* Add row / Export / Import row — same button vocabulary as
-   TemplateBuilderPage's .tb-add-column (text-style accent action) and
-   .tb-cancel (bordered neutral button), so this page's new actions read
-   as the same product rather than inventing a second button language. */
-.dv-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.dv-add-row {
+.dv-search-clear {
+  position: absolute;
+  right: var(--space-2);
   background: none;
   border: none;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  color: var(--ink-muted);
   cursor: pointer;
-  padding: var(--space-1) 0;
+  line-height: 1;
 }
 
-.dv-add-row:disabled {
-  color: var(--ink-muted);
-  cursor: default;
+.dv-search-clear:hover {
+  color: var(--ink);
+}
+
+.dv-filter-chip {
+  height: 36px;
+  background: var(--paper-band);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 0 var(--space-3);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dv-filter-chip:hover {
+  border-color: var(--accent);
+}
+
+.dv-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--paper-band);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0 var(--space-3);
+  height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dv-bulk-delete:hover {
+  border-color: var(--warn);
+  color: var(--warn);
 }
 
 .dv-toolbar-button {
   background: none;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
-  padding: var(--space-2) var(--space-4);
+  height: 36px;
+  padding: 0 var(--space-4);
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .dv-toolbar-button:hover {
@@ -218,21 +213,44 @@
   color: var(--accent);
 }
 
-.dv-toolbar-button:disabled,
-.dv-toolbar-button:has(input:disabled) {
+.dv-toolbar-button:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-/* "Columns" visibility menu — lets any subset of columns show in the
-   grid, which is the real fix for a template with more columns than
-   comfortably fit on screen at once (horizontal scroll alone doesn't
-   scale past a certain point). */
-.dv-columns-menu {
+.dv-new-button {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.dv-add-row-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: var(--radius);
+  height: 36px;
+  padding: 0 var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dv-add-row-primary:hover {
+  opacity: 0.92;
+}
+
+.dv-add-row-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dv-columns-menu,
+.dv-data-menu {
   position: relative;
 }
 
-.dv-columns-panel {
+.dv-columns-panel,
+.dv-data-menu-panel {
   position: absolute;
   top: calc(100% + var(--space-1));
   left: 0;
@@ -241,10 +259,35 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   padding: var(--space-2);
-  min-width: 180px;
-  max-height: 280px;
+  min-width: 200px;
+  max-height: 320px;
   overflow-y: auto;
   box-shadow: 0 2px 8px rgba(32, 43, 35, 0.15);
+}
+
+.dv-columns-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+.dv-columns-panel-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.dv-columns-panel-actions button {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 2px var(--space-2);
+  cursor: pointer;
 }
 
 .dv-columns-panel-item {
@@ -263,10 +306,25 @@
   border-radius: 4px;
 }
 
-/* The Import button is a styled <label> wrapping a native file input —
-   the input itself is visually hidden but still keyboard- and
-   screen-reader-accessible (clicking/activating the label opens the file
-   picker, same as clicking a visible native input would). */
+.dv-data-menu-panel button,
+.dv-data-menu-import {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) var(--space-2);
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+}
+
+.dv-data-menu-panel button:hover,
+.dv-data-menu-import:hover {
+  background: var(--paper-band);
+  border-radius: 4px;
+}
+
 .dv-import-label {
   position: relative;
   display: inline-block;
@@ -281,67 +339,23 @@
   cursor: pointer;
 }
 
-/* The real focus target (the hidden input) is invisible, so the global
-   :focus-visible outline from tokens.css would draw on nothing — put it
-   on the visible label instead when the input inside it has focus. */
-.dv-import-label:focus-within {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .dv-error {
   color: var(--warn);
   background: var(--warn-bg);
   border: 1px solid var(--warn);
   border-radius: var(--radius);
   padding: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   font-size: 14px;
 }
 
-/* Per-row actions in the grid's trailing column: an explicit Edit button
-   (click-to-edit has no affordance of its own, so this gives every row a
-   visible, discoverable way in) plus the existing Delete. */
-.dv-row-actions {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.dv-edit-row,
-.dv-delete-row {
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 5px;
-  color: var(--ink-muted);
-  font-size: 13px;
-  padding: var(--space-1) var(--space-2);
-  cursor: pointer;
-}
-
-.dv-edit-row:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.dv-edit-row:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.dv-delete-row:hover {
-  color: var(--warn);
-  border-color: var(--warn);
-}
-
-/* Import result: per-row errors use the same warn treatment as .dv-error;
-   a clean import uses the accent color, matching .tb-status. */
 .dv-import-errors {
   color: var(--warn);
   background: var(--warn-bg);
   border: 1px solid var(--warn);
   border-radius: var(--radius);
   padding: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   font-size: 14px;
 }
 
@@ -354,60 +368,105 @@
   padding-left: var(--space-5);
 }
 
-.dv-import-errors li {
-  margin-bottom: var(--space-1);
-}
-
 .dv-import-success {
   color: var(--accent);
   font-size: 14px;
-  margin: 0 0 var(--space-4) 0;
+  margin: 0 0 var(--space-3) 0;
 }
 
-/* Loading state: plain-language text, not a blank flash. */
+/* The grid fills whatever is left of the page. */
+.dv-grid-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dv-grid {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.dv-empty,
 .dv-loading {
   color: var(--ink-muted);
   font-size: 14px;
   padding: var(--space-4) 0;
 }
 
-.dv-empty {
+.dv-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
   color: var(--ink-muted);
+  font-size: 15px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.dv-empty-state-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.dv-empty-state-import {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  font-weight: 600;
   font-size: 14px;
-  padding: var(--space-4) 0;
+  cursor: pointer;
 }
 
-/* Plain-language reminder of how editing works, shown once above the
-   grid — inline cell editing has no visual affordance of its own, so this
-   is the only thing that makes "click a cell to change it" discoverable. */
-.dv-hint {
+.dv-skeleton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+
+.dv-skeleton-row {
+  height: 32px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--paper-band) 25%, var(--paper) 50%, var(--paper-band) 75%);
+  background-size: 200% 100%;
+  animation: dv-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes dv-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Grid cell content */
+.dv-numeric {
+  font-variant-numeric: tabular-nums;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.dv-numeric-header .ag-header-cell-label {
+  justify-content: flex-end;
+}
+
+.dv-formula-cell {
   color: var(--ink-muted);
-  font-size: 13px;
-  margin: 0 0 var(--space-2) 0;
 }
 
-/* Shown next to the grid during a search re-fetch — the grid itself stays
-   mounted and visible, so typing a search never blanks the sheet out
-   from under the user. */
-.dv-searching {
-  color: var(--ink-muted);
-  font-size: 13px;
-  margin: 0 0 var(--space-2) 0;
-}
-
-/* AG-Grid wrapper. The grid's own chrome (border, radius, row/header
-   colors) is themed via the Theming API object in DataViewPage.tsx, built
-   from this same token set — this just fixes a scroll height so the grid
-   behaves like a real spreadsheet viewport. */
-.dv-grid {
-  height: 420px;
-  width: 100%;
-}
-
-/* A formula result of "#VALUE!" gets a visibly marked error treatment —
-   the same warn/rust tokens used for the destructive-confirm dialog in
-   TemplateBuilderPage.css, so "this is wrong" reads consistently across
-   the app. */
 .dv-cell-error {
   display: inline-block;
   color: var(--warn);
@@ -417,22 +476,140 @@
   font-weight: 600;
 }
 
-.dv-numeric {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+.dv-check {
+  color: var(--accent);
+  font-weight: 700;
 }
 
-/* Edit/Add-row modal — same overlay/dialog pattern as
-   TemplateBuilderPage's destructive-change warning dialog, reused here
-   for an ordinary (non-destructive) action, so Save uses --accent rather
-   than the --warn/rust reserved for destructive confirms. */
+.dv-alert-badge {
+  display: inline-block;
+  color: var(--warn-ink);
+  background: var(--warn);
+  border-radius: 4px;
+  padding: 1px var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dv-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dv-badge.tint-0 {
+  background: #e3ead9;
+  color: #3c6e53;
+}
+.dv-badge.tint-1 {
+  background: #dce9ef;
+  color: #2b5f78;
+}
+.dv-badge.tint-2 {
+  background: #f1e6d6;
+  color: #8a5a22;
+}
+.dv-badge.tint-3 {
+  background: #ecdfe9;
+  color: #6c3f82;
+}
+.dv-badge.tint-4 {
+  background: #f5e9e3;
+  color: #9c4a2c;
+}
+.dv-badge.tint-5 {
+  background: #e4e4e0;
+  color: #52524c;
+}
+
+.dv-date-cell-editor {
+  padding: 2px 0;
+}
+
+.dv-number-cell-editor {
+  width: 100%;
+  height: 100%;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 14px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 0 var(--space-2);
+  box-sizing: border-box;
+}
+
+/* Row actions "⋯" menu */
+.dv-row-actions {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.dv-row-actions-button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  padding: 2px var(--space-2);
+  border-radius: 5px;
+  opacity: 0;
+}
+
+.ag-row:hover .dv-row-actions-button,
+.ag-row:focus-within .dv-row-actions-button,
+.dv-row-actions-button:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .dv-row-actions-button {
+    opacity: 1;
+  }
+}
+
+.dv-row-actions-button:hover {
+  background: var(--paper-band);
+  color: var(--ink);
+}
+
+.dv-row-actions-menu-portal {
+  position: fixed;
+  z-index: 300;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  min-width: 140px;
+  box-shadow: 0 4px 16px rgba(32, 43, 35, 0.2);
+  overflow: hidden;
+}
+
+.dv-row-actions-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.dv-row-actions-menu button:hover {
+  background: var(--paper-band);
+}
+
+.dv-row-actions-delete:hover {
+  color: var(--warn);
+}
+
+/* Edit/Add-row modal, bulk-edit modal, new-template dialog */
 .dv-overlay {
   position: fixed;
   inset: 0;
-  /* AG-Grid's own internals (header, pinned columns) establish their own
-     stacking context and can otherwise render above a z-index:auto
-     overlay despite it being position:fixed -- without this, the grid's
-     header visibly bled through on top of the modal. */
   z-index: 100;
   background: rgba(32, 43, 35, 0.45);
   display: flex;
@@ -452,6 +629,10 @@
   box-shadow: 0 8px 24px rgba(32, 43, 35, 0.25);
 }
 
+.dv-bulk-dialog {
+  max-width: 440px;
+}
+
 .dv-dialog-header {
   display: flex;
   align-items: flex-start;
@@ -459,7 +640,8 @@
   gap: var(--space-3);
 }
 
-.dv-dialog-header h2 {
+.dv-dialog-header h2,
+.dv-bulk-dialog h2 {
   font-family: var(--font-heading);
   font-size: 18px;
   margin: 0 0 var(--space-3) 0;
@@ -486,9 +668,19 @@
   margin-bottom: var(--space-4);
 }
 
+.dv-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.dv-field input[type="text"],
+.dv-field input[type="number"],
+.dv-field select,
 .dv-edit-fields input[type="text"],
 .dv-edit-fields input[type="number"],
-.dv-edit-fields input[type="date"] {
+.dv-edit-fields select {
   font-family: var(--font-body);
   font-size: 14px;
   padding: var(--space-2) var(--space-3);
@@ -498,29 +690,21 @@
   color: var(--ink);
 }
 
+.dv-field-readonly {
+  background: var(--paper-band) !important;
+  color: var(--ink-muted) !important;
+}
+
 .dv-edit-fields input[type="checkbox"] {
   width: 18px;
   height: 18px;
-}
-
-.dv-date-field {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.dv-date-field input[type="text"] {
-  flex: 1;
-  min-width: 0;
-}
-
-.dv-date-field input[type="date"] {
-  flex: 0 0 auto;
 }
 
 .dv-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .dv-cancel-edit {
@@ -549,6 +733,31 @@
   cursor: default;
 }
 
+.dv-toast {
+  position: fixed;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-shadow: 0 8px 24px rgba(32, 43, 35, 0.3);
+  z-index: 200;
+}
+
+.dv-toast-undo {
+  background: none;
+  border: none;
+  color: #9ad6b4;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .dv-overlay {
     animation: dv-fade-in 0.12s ease-out;
@@ -564,13 +773,28 @@
   }
 }
 
-@media (max-width: 640px) {
-  .dv-layout {
-    flex-direction: column;
+@media (max-width: 900px) {
+  .dv-page {
+    height: auto;
+    min-height: calc(100vh - 96px);
   }
 
-  .dv-sidebar {
-    flex: initial;
+  /* Below this width .dv-page switches from a fixed height to auto, so
+     the grid's flex:1 ancestor chain has no real size to grow into --
+     AG-Grid then measures its own wrapper at ~0px instead of growing with
+     it. A fixed height sidesteps that: no flex-grow involved. */
+  .dv-grid-area {
+    flex: none;
+    height: 480px;
+  }
+
+  .dv-grid {
+    flex: none;
+    height: 100%;
+  }
+
+  .dv-search input {
+    min-width: 0;
     width: 100%;
   }
 }

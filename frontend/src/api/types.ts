@@ -2,6 +2,18 @@ export interface TemplateColumn {
   name: string;
   type: "text" | "number" | "date" | "boolean";
   formula: string | null;
+  /** Display name. Falls back to a sentence-cased version of `name`. */
+  label?: string | null;
+  /** Number: plain/integer/currency/percent. Text: plain/choice. */
+  format?: "plain" | "integer" | "currency" | "percent" | "choice" | null;
+  decimals?: number | null;
+  currency?: string | null;
+  /** Options for a `format: "choice"` text column. */
+  options?: string[] | null;
+  /** Boolean formula column rendering: a check icon, or a red alert badge. */
+  style?: "check" | "alert" | null;
+  width?: number | null;
+  pinned?: "left" | null;
 }
 
 export interface TemplateRead {

@@ -1,0 +1,134 @@
+.di-root {
+  position: relative;
+  width: 100%;
+}
+
+.di-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.di-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.di-input:focus-visible {
+  background: var(--surface);
+}
+
+.di-input-invalid {
+  border-color: var(--warn);
+}
+
+.di-calendar-button {
+  flex: 0 0 auto;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.di-calendar-button:hover {
+  border-color: var(--accent);
+}
+
+.di-hint {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.di-hint-error {
+  color: var(--warn);
+}
+
+.di-calendar {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(32, 43, 35, 0.2);
+  padding: var(--space-2);
+  width: 240px;
+}
+
+.di-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.di-calendar-header button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--ink-muted);
+  padding: 0 var(--space-2);
+}
+
+.di-calendar-header button:hover {
+  color: var(--accent);
+}
+
+.di-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.di-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.di-calendar-day {
+  background: none;
+  border: none;
+  border-radius: 5px;
+  font-size: 13px;
+  padding: 5px 0;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.di-calendar-day:hover {
+  background: var(--paper-band);
+}
+
+.di-calendar-day-muted {
+  color: var(--ink-muted);
+  opacity: 0.6;
+}
+
+.di-calendar-day-selected {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
