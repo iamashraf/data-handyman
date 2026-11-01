@@ -110,7 +110,50 @@ describe("TemplateBuilderPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(createTemplate).toHaveBeenCalledWith({
       name: "Expenses",
-      columns: [{ name: "amount", type: "text", formula: null }],
+      columns: [{ name: "amount", type: "text", formula: null, format: null }],
+    });
+  });
+
+  it("marks a text column as long text, saving it with format: long_text", async () => {
+    const created = {
+      id: 2,
+      name: "Tickets",
+      columns: [{ name: "notes", type: "text" as const, formula: null }],
+      created_at: "",
+      updated_at: "",
+    };
+    vi.mocked(createTemplate).mockResolvedValueOnce(created);
+    render(<TemplateBuilderPage />);
+    await userEvent.type(screen.getByLabelText(/template name/i), "Tickets");
+    await userEvent.click(screen.getByRole("button", { name: /add column/i }));
+    await userEvent.type(screen.getByLabelText(/column 1 name/i), "notes");
+    await userEvent.click(screen.getByLabelText(/column 1 long text/i));
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(createTemplate).toHaveBeenCalledWith({
+      name: "Tickets",
+      columns: [{ name: "notes", type: "text", formula: null, format: "long_text" }],
+    });
+  });
+
+  it("disables and ignores the long-text checkbox for a non-text column", async () => {
+    const created = {
+      id: 2,
+      name: "T",
+      columns: [{ name: "count", type: "number" as const, formula: null }],
+      created_at: "",
+      updated_at: "",
+    };
+    vi.mocked(createTemplate).mockResolvedValueOnce(created);
+    render(<TemplateBuilderPage />);
+    await userEvent.type(screen.getByLabelText(/template name/i), "T");
+    await userEvent.click(screen.getByRole("button", { name: /add column/i }));
+    await userEvent.type(screen.getByLabelText(/column 1 name/i), "count");
+    await userEvent.selectOptions(screen.getByLabelText(/column 1 type/i), "number");
+    expect(screen.getByLabelText(/column 1 long text/i)).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(createTemplate).toHaveBeenCalledWith({
+      name: "T",
+      columns: [{ name: "count", type: "number", formula: null, format: null }],
     });
   });
 

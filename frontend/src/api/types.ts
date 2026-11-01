@@ -4,8 +4,8 @@ export interface TemplateColumn {
   formula: string | null;
   /** Display name. Falls back to a sentence-cased version of `name`. */
   label?: string | null;
-  /** Number: plain/integer/currency/percent. Text: plain/choice. */
-  format?: "plain" | "integer" | "currency" | "percent" | "choice" | null;
+  /** Number: plain/integer/currency/percent. Text: plain/choice/long_text. */
+  format?: "plain" | "integer" | "currency" | "percent" | "choice" | "long_text" | null;
   decimals?: number | null;
   currency?: string | null;
   /** Options for a `format: "choice"` text column. */

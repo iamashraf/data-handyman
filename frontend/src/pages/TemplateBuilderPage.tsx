@@ -19,6 +19,10 @@ interface ColumnDraft {
   name: string;
   type: TemplateColumn["type"];
   formula: string;
+  /** Text columns only: a bigger, multi-line editor (grid popup + "Edit in
+   *  form" textarea) instead of the single-line default -- for a column
+   *  like "Notes" as opposed to one like "Task name". */
+  longText: boolean;
 }
 
 const COLUMN_TYPE_LABELS: Record<TemplateColumn["type"], string> = {
@@ -29,11 +33,16 @@ const COLUMN_TYPE_LABELS: Record<TemplateColumn["type"], string> = {
 };
 
 function emptyColumn(): ColumnDraft {
-  return { name: "", type: "text", formula: "" };
+  return { name: "", type: "text", formula: "", longText: false };
 }
 
 function toDrafts(columns: TemplateColumn[]): ColumnDraft[] {
-  return columns.map((c) => ({ name: c.name, type: c.type, formula: c.formula ?? "" }));
+  return columns.map((c) => ({
+    name: c.name,
+    type: c.type,
+    formula: c.formula ?? "",
+    longText: c.format === "long_text",
+  }));
 }
 
 function toColumns(drafts: ColumnDraft[]): TemplateColumn[] {
@@ -41,6 +50,7 @@ function toColumns(drafts: ColumnDraft[]): TemplateColumn[] {
     name: d.name,
     type: d.type,
     formula: d.formula.trim() === "" ? null : d.formula,
+    format: d.type === "text" && d.longText ? "long_text" : null,
   }));
 }
 
@@ -333,6 +343,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
                       <th scope="col">#</th>
                       <th scope="col">Column name</th>
                       <th scope="col">Type</th>
+                      <th scope="col">Long text</th>
                       <th scope="col">Formula (optional)</th>
                       <th scope="col">Remove</th>
                     </tr>
@@ -361,6 +372,15 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
                               </option>
                             ))}
                           </select>
+                        </td>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`Column ${index + 1} long text`}
+                            checked={col.longText}
+                            disabled={col.type !== "text"}
+                            onChange={(e) => updateColumn(index, { longText: e.target.checked })}
+                          />
                         </td>
                         <td>
                           <input

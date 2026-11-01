@@ -310,4 +310,25 @@ describe("DataViewPage", () => {
     await userEvent.upload(screen.getByLabelText(/import/i), file);
     expect(await screen.findByText(/imported 4 rows/i)).toBeInTheDocument();
   });
+
+  it("Edit in form gives a long_text column a textarea and a plain text column a single-line input", async () => {
+    vi.mocked(getTemplate).mockResolvedValue({
+      id: 1,
+      name: "Expenses",
+      columns: [
+        { name: "title", type: "text" as const, formula: null },
+        { name: "notes", type: "text" as const, formula: null, format: "long_text" as const },
+      ],
+      created_at: "",
+      updated_at: "",
+    });
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { title: "Hi", notes: "Hello" }, computed: {}, created_at: "", updated_at: "" },
+    ]);
+    render(<DataViewPage templateId={1} />);
+    await userEvent.click(await screen.findByRole("button", { name: /row actions for hi/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /edit in form/i }));
+    expect((await screen.findByLabelText(/^title$/i)).tagName).toBe("INPUT");
+    expect(screen.getByLabelText(/^notes$/i).tagName).toBe("TEXTAREA");
+  });
 });

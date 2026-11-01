@@ -12,7 +12,7 @@ class TemplateColumn(BaseModel):
     # these fields existed, keep working with no migration: a missing
     # field just falls back to the frontend's own default.
     label: str | None = None
-    format: Literal["plain", "integer", "currency", "percent", "choice"] | None = None
+    format: Literal["plain", "integer", "currency", "percent", "choice", "long_text"] | None = None
     decimals: int | None = None
     currency: str | None = None
     options: list[str] | None = None

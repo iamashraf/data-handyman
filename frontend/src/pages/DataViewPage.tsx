@@ -651,6 +651,17 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
             filter: "agTextColumnFilter",
           };
         }
+        if (col.format === "long_text") {
+          return {
+            ...base,
+            cellRenderer: TextCell,
+            cellEditor: "agLargeTextCellEditor",
+            cellEditorPopup: true,
+            cellEditorParams: { rows: 6, cols: 50 },
+            filter: "agTextColumnFilter",
+            tooltipField: col.name,
+          };
+        }
         return {
           ...base,
           cellRenderer: TextCell,
@@ -1307,9 +1318,15 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
                           </option>
                         ))}
                       </select>
-                    ) : (
+                    ) : col.format === "long_text" ? (
                       <textarea
                         rows={3}
+                        value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
+                        onChange={(e) => handleEditFieldChange(col.name, e.target.value)}
+                      />
+                    ) : (
+                      <input
+                        type="text"
                         value={editDraft[col.name] == null ? "" : String(editDraft[col.name])}
                         onChange={(e) => handleEditFieldChange(col.name, e.target.value)}
                       />
