@@ -25,6 +25,39 @@
   --select-width: 180px;
 }
 
+/* Group-by is a checkbox dropdown, not a native multi-select (which needs
+   an undiscoverable ctrl/cmd-click to pick more than one) -- same
+   button+panel pattern as DataViewPage's Columns menu. `.sv-field` is
+   normally a <label> (inline by default, so its text sits beside the
+   control); this is a <div> instead, so it needs that layout spelled out. */
+.sv-groupby-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+}
+
+.sv-groupby-button {
+  min-width: var(--select-width, 180px);
+  justify-content: space-between;
+}
+
+.sv-groupby-menu .menu-panel {
+  top: calc(100% + var(--space-1));
+  left: 0;
+  min-width: 200px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.sv-groupby-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
 .sv-loading,
 .sv-empty {
   color: var(--ink-muted);
@@ -49,8 +82,16 @@
 }
 
 .sv-chart {
-  max-width: 100%;
-  overflow-x: auto;
+  flex: 1 1 360px;
+  min-width: 300px;
+  max-width: 560px;
+}
+
+/* The one active chart (not a saved-view dashboard card) gets the full
+   row to itself -- more room for angled composite labels than when two
+   charts used to split this space. */
+.sv-chart-single {
+  max-width: 900px;
 }
 
 .sv-chart-title {
@@ -61,54 +102,89 @@
   margin: 0 0 var(--space-2) 0;
 }
 
-.sv-chart-svg {
-  display: block;
+.sv-save-view-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
-/* Bars: one hue (--accent) — these are one measure across a template's
-   own category values, not tracked series, so there's no legend; the
-   chart title above names what's plotted. Hover/focus lifts the mark by
-   brightness only, not a second color. */
-.sv-bar {
-  fill: var(--accent);
-}
-
-.sv-bar-row:hover .sv-bar {
-  filter: brightness(1.15);
-}
-
-/* Gridlines and the baseline rule: recessive, same --rule token used for
-   every hairline divider elsewhere in the app. */
-.sv-gridline {
-  stroke: var(--rule);
-  stroke-width: 1;
-  opacity: 0.6;
-}
-
-.sv-baseline {
-  stroke: var(--rule);
-  stroke-width: 1;
-}
-
-/* Text never wears the bar's color — category labels, values, and axis
-   ticks all stay in the text tokens. */
-.sv-bar-label {
-  fill: var(--ink);
+.sv-save-view-row input[type="text"] {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  font-size: 14px;
   font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/* Saved-views dashboard: a grid of self-contained chart cards, each its
+   own fetch -- see SavedViewCard in SummaryViewPage.tsx. */
+.sv-dashboard {
+  margin-top: var(--space-6);
+}
+
+.sv-dashboard-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.sv-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.sv-card {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-3);
+}
+
+.sv-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sv-card-title {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sv-card-title:hover {
+  color: var(--accent);
+}
+
+.sv-card-delete {
+  background: none;
+  border: none;
+  padding: 0 var(--space-1);
+  font-size: 16px;
+  line-height: 1;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.sv-card-delete:hover {
+  color: var(--warn);
+}
+
+.sv-card-subtitle {
+  margin: var(--space-1) 0 var(--space-2) 0;
   font-size: 12px;
-}
-
-.sv-bar-value {
-  fill: var(--ink-muted);
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.sv-axis-tick {
-  fill: var(--ink-muted);
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
 }
 

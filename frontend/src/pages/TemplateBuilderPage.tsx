@@ -8,7 +8,7 @@ import {
   listTemplates,
   updateTemplate,
 } from "../api/client";
-import type { TemplateColumn, TemplateRead, TemplateWarningResult } from "../api/types";
+import type { TemplateColumn, TemplateRead, TemplateWarningResult, UniqueConstraint } from "../api/types";
 import "./TemplateBuilderPage.css";
 
 interface TemplateBuilderPageProps {
@@ -54,6 +54,30 @@ function toColumns(drafts: ColumnDraft[]): TemplateColumn[] {
   }));
 }
 
+interface ConstraintDraft {
+  name: string;
+  columns: string[];
+}
+
+function toConstraintDrafts(constraints: UniqueConstraint[]): ConstraintDraft[] {
+  return constraints.map((c) => ({ name: c.name, columns: c.columns }));
+}
+
+function emptyConstraint(): ConstraintDraft {
+  return { name: "", columns: [] };
+}
+
+/** Drops a still-empty constraint row (no columns picked yet) rather than
+ *  sending it to the backend, which would otherwise reject it as needing
+ *  at least one column -- a confusing error for a row the user just hasn't
+ *  finished configuring. A blank name falls back to the joined column
+ *  names, so naming a constraint is optional. */
+function toConstraints(drafts: ConstraintDraft[]): UniqueConstraint[] {
+  return drafts
+    .filter((d) => d.columns.length > 0)
+    .map((d) => ({ name: d.name.trim() || d.columns.join(" + "), columns: d.columns }));
+}
+
 /** Turns an ApiError's body into a message a non-technical user can read. */
 function describeApiError(error: ApiError): string {
   const body = error.body;
@@ -80,6 +104,8 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
   const [selectedId, setSelectedId] = useState<number | undefined>(templateId);
   const [name, setName] = useState("");
   const [columns, setColumns] = useState<ColumnDraft[]>([]);
+  const [constraints, setConstraints] = useState<ConstraintDraft[]>([]);
+  const [openConstraintPicker, setOpenConstraintPicker] = useState<number | null>(null);
   const [warning, setWarning] = useState<TemplateWarningResult | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -91,6 +117,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const wasWarningOpen = useRef(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const constraintPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     listTemplates()
@@ -108,12 +135,14 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     if (selectedId == null) {
       setName("");
       setColumns([]);
+      setConstraints([]);
       return;
     }
     getTemplate(selectedId)
       .then((t) => {
         setName(t.name);
         setColumns(toDrafts(t.columns));
+        setConstraints(toConstraintDrafts(t.unique_constraints));
       })
       .catch(() => setSaveError("Couldn't load this template. Check your connection and try again."));
   }, [selectedId]);
@@ -131,15 +160,18 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
   }, [warning]);
 
   useEffect(() => {
-    if (!dropdownOpen) return;
+    if (!dropdownOpen && openConstraintPicker == null) return;
     function handleOutsideClick(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
+      if (constraintPickerRef.current && !constraintPickerRef.current.contains(event.target as Node)) {
+        setOpenConstraintPicker(null);
+      }
     }
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [dropdownOpen]);
+  }, [dropdownOpen, openConstraintPicker]);
 
   function clearStatus() {
     setStatusMessage(null);
@@ -150,6 +182,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     setWarning(null);
     setSaveError(null);
     setDropdownOpen(false);
+    setOpenConstraintPicker(null);
     clearStatus();
   }
 
@@ -158,6 +191,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     setWarning(null);
     setSaveError(null);
     setDropdownOpen(false);
+    setOpenConstraintPicker(null);
     clearStatus();
   }
 
@@ -203,12 +237,40 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     clearStatus();
   }
 
+  function addConstraint() {
+    setConstraints((prev) => [...prev, emptyConstraint()]);
+    setOpenConstraintPicker(constraints.length);
+    clearStatus();
+  }
+
+  function removeConstraint(index: number) {
+    setConstraints((prev) => prev.filter((_, i) => i !== index));
+    setOpenConstraintPicker(null);
+    clearStatus();
+  }
+
+  function updateConstraintName(index: number, name: string) {
+    setConstraints((prev) => prev.map((c, i) => (i === index ? { ...c, name } : c)));
+    clearStatus();
+  }
+
+  function toggleConstraintColumn(index: number, columnName: string) {
+    setConstraints((prev) =>
+      prev.map((c, i) =>
+        i === index
+          ? { ...c, columns: c.columns.includes(columnName) ? c.columns.filter((n) => n !== columnName) : [...c.columns, columnName] }
+          : c
+      )
+    );
+    clearStatus();
+  }
+
   async function save(force: boolean) {
     setSaving(true);
     setSaveError(null);
     clearStatus();
     try {
-      const input = { name, columns: toColumns(columns) };
+      const input = { name, columns: toColumns(columns), unique_constraints: toConstraints(constraints) };
       if (selectedId == null) {
         const created = await createTemplate(input);
         setSelectedId(created.id);
@@ -258,6 +320,12 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
   const recordWord = (count: number) => (count === 1 ? "record" : "records");
   const columnWord = (count: number) => (count === 1 ? "column" : "columns");
   const selectedTemplate = templates.find((t) => t.id === selectedId);
+  // A unique constraint can only cover a plain (non-formula) column -- a
+  // formula's value is computed, not entered, so "no duplicate values"
+  // isn't something a user sets; matches the backend's own restriction.
+  const nonFormulaColumnNames = columns
+    .filter((c) => c.formula.trim() === "" && c.name.trim() !== "")
+    .map((c) => c.name);
 
   return (
     <div className="dv-page">
@@ -412,6 +480,71 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
               </button>
             </>
           )}
+
+          <h3 className="tb-columns-heading">Unique constraints</h3>
+          <p className="tb-constraints-hint">
+            Block duplicate records by column value -- e.g. no two records with the same Serial No, or the same
+            combination of Region and Year.
+          </p>
+
+          {constraints.length > 0 ? (
+            <ul className="tb-constraints-list">
+              {constraints.map((constraint, index) => (
+                <li key={index} className="tb-constraint-row">
+                  <input
+                    type="text"
+                    className="tb-constraint-name"
+                    aria-label={`Unique constraint ${index + 1} name`}
+                    placeholder={constraint.columns.length > 0 ? constraint.columns.join(" + ") : "Constraint name (optional)"}
+                    value={constraint.name}
+                    onChange={(e) => updateConstraintName(index, e.target.value)}
+                  />
+                  <div className="tb-constraint-picker" ref={openConstraintPicker === index ? constraintPickerRef : undefined}>
+                    <button
+                      type="button"
+                      className="dv-toolbar-button"
+                      onClick={() => setOpenConstraintPicker((open) => (open === index ? null : index))}
+                      aria-expanded={openConstraintPicker === index}
+                      aria-haspopup="menu"
+                      aria-label={`Unique constraint ${index + 1} columns${constraint.columns.length > 0 ? ` (${constraint.columns.length} selected)` : ""}`}
+                    >
+                      {constraint.columns.length === 0 ? "Choose columns…" : constraint.columns.join(", ")}
+                      <span aria-hidden="true"> ▾</span>
+                    </button>
+                    {openConstraintPicker === index ? (
+                      <div className="menu-panel menu-panel-scroll" role="menu">
+                        {nonFormulaColumnNames.length === 0 ? (
+                          <p className="tb-constraint-empty">Add a named, non-formula column first.</p>
+                        ) : (
+                          nonFormulaColumnNames.map((columnName) => (
+                            <label key={columnName} className="menu-item tb-constraint-item">
+                              <input
+                                type="checkbox"
+                                checked={constraint.columns.includes(columnName)}
+                                onChange={() => toggleConstraintColumn(index, columnName)}
+                              />
+                              {columnName}
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="tb-remove-column"
+                    aria-label={`Remove unique constraint ${index + 1}`}
+                    onClick={() => removeConstraint(index)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <button type="button" className="tb-add-column" onClick={addConstraint}>
+            + Add unique constraint
+          </button>
 
           {statusMessage ? (
             <p role="status" className="tb-status">

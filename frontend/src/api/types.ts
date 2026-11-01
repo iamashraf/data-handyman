@@ -16,10 +16,19 @@ export interface TemplateColumn {
   pinned?: "left" | null;
 }
 
+/** A "no two records share this value" rule over one or more of a
+ *  template's plain (non-formula) columns. A record where any of the
+ *  constraint's columns is blank never conflicts with anything. */
+export interface UniqueConstraint {
+  name: string;
+  columns: string[];
+}
+
 export interface TemplateRead {
   id: number;
   name: string;
   columns: TemplateColumn[];
+  unique_constraints: UniqueConstraint[];
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +59,21 @@ export interface ImportResult {
 }
 
 export interface SummaryRow {
-  group_value: unknown;
+  /** One entry per group_by column, keyed by column name. */
+  group_values: Record<string, unknown>;
   count: number;
   sum: number | null;
+}
+
+export type ChartType = "bar" | "line" | "pie" | "area";
+
+export interface SummaryViewRead {
+  id: number;
+  template_id: number;
+  name: string;
+  group_by: string[];
+  metric: string | null;
+  chart_type: ChartType;
+  created_at: string;
+  updated_at: string;
 }

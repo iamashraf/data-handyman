@@ -31,6 +31,39 @@ def test_delete_record_returns_404_when_missing(client):
     assert resp.json()["detail"] == "Record not found"
 
 
+def test_create_record_violating_unique_constraint_returns_422(client):
+    t = client.post(
+        "/templates",
+        json={
+            "name": "T",
+            "columns": [{"name": "serial_no", "type": "text", "formula": None}],
+            "unique_constraints": [{"name": "Serial No", "columns": ["serial_no"]}],
+        },
+    ).json()
+    client.post(f"/templates/{t['id']}/records", json={"data": {"serial_no": "A1"}})
+    resp = client.post(f"/templates/{t['id']}/records", json={"data": {"serial_no": "A1"}})
+    assert resp.status_code == 422
+    assert "Serial No" in resp.json()["detail"]
+
+
+def test_update_record_violating_unique_constraint_returns_422(client):
+    t = client.post(
+        "/templates",
+        json={
+            "name": "T",
+            "columns": [{"name": "serial_no", "type": "text", "formula": None}],
+            "unique_constraints": [{"name": "Serial No", "columns": ["serial_no"]}],
+        },
+    ).json()
+    client.post(f"/templates/{t['id']}/records", json={"data": {"serial_no": "A1"}})
+    second = client.post(
+        f"/templates/{t['id']}/records", json={"data": {"serial_no": "A2"}}
+    ).json()
+    resp = client.put(f"/records/{second['id']}", json={"data": {"serial_no": "A1"}})
+    assert resp.status_code == 422
+    assert "Serial No" in resp.json()["detail"]
+
+
 def test_get_update_delete_record_roundtrip(client):
     t = client.post(
         "/templates",

@@ -273,7 +273,6 @@ textarea.input {
 
 .menu-panel,
 .dv-columns-panel,
-.dv-data-menu-panel,
 .dv-template-dropdown-panel,
 .dv-row-actions-menu {
   position: absolute;
@@ -293,16 +292,13 @@ textarea.input {
 }
 
 .menu-panel-scroll,
-.dv-columns-panel,
-.dv-data-menu-panel {
+.dv-columns-panel {
   max-height: 320px;
   overflow-y: auto;
   padding: var(--space-2);
 }
 
 .menu-item,
-.dv-data-menu-panel button,
-.dv-data-menu-import,
 .dv-row-actions-menu button {
   display: block;
   width: 100%;
@@ -320,8 +316,6 @@ textarea.input {
 }
 
 .menu-item:hover,
-.dv-data-menu-panel button:hover,
-.dv-data-menu-import:hover,
 .dv-row-actions-menu button:hover {
   background: var(--paper-band);
 }

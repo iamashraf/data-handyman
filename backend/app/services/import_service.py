@@ -31,6 +31,7 @@ from openpyxl.utils.exceptions import InvalidFileException
 
 from app.models.template import TemplateColumn, TemplateRead
 from app.repository import records_repo
+from app.services import unique_constraint_service
 
 logger = logging.getLogger("app.import_service")
 
@@ -209,6 +210,11 @@ def import_xlsx(
 
     imported_count = 0
     errors: list[ImportRowError] = []
+    # Seeded from already-existing records, then grown as rows import
+    # successfully below -- so a constraint check catches a duplicate
+    # against prior data *and* against an earlier row in this same file,
+    # without a DB round trip per row.
+    imported_data: list[dict[str, Any]] = [r.data for r in records_repo.list_records(conn, template.id)]
 
     for row_number, row in enumerate(rows[1:], start=2):
         row_by_name = dict(zip(header, row))
@@ -238,6 +244,13 @@ def import_xlsx(
             else:
                 data[column.name] = coerced
 
+        if template.unique_constraints:
+            conflict = unique_constraint_service.find_conflict(
+                template.unique_constraints, data, imported_data
+            )
+            if conflict:
+                row_reasons.append(unique_constraint_service.conflict_message(conflict))
+
         if row_reasons:
             errors.append(
                 ImportRowError(row_number=row_number, reason="; ".join(row_reasons))
@@ -247,6 +260,7 @@ def import_xlsx(
         try:
             records_repo.create_record(conn, template.id, data)
             imported_count += 1
+            imported_data.append(data)
         except Exception:
             # An unexpected failure saving one row (e.g. a database error)
             # shouldn't take down the whole import -- rows already

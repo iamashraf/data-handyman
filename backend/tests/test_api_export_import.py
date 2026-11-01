@@ -89,6 +89,88 @@ def test_export_endpoint_include_summary_with_group_by(client):
     )
 
 
+def test_export_endpoint_include_summary_with_multiple_group_by_columns(client):
+    template_id = _template_with_records(client)
+    resp = client.get(
+        f"/templates/{template_id}/export",
+        params=[
+            ("include_summary", True),
+            ("group_by", "status"),
+            ("group_by", "amount"),
+            ("metric", "amount"),
+        ],
+    )
+    assert resp.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+    data_sheet = wb["Data"]
+    summary_col = 2 + 2  # two data columns + 2
+    assert [
+        data_sheet.cell(row=2, column=summary_col + i).value for i in range(4)
+    ] == ["status", "amount", "count", "sum"]
+
+
+def test_export_endpoint_with_ids_only_includes_those_records(client):
+    template_id = _template_with_records(client)
+    all_records = client.get(f"/templates/{template_id}/records").json()
+    assert len(all_records) == 2
+    # Keep the "Closed"/5 record specifically, so the assertion below can't
+    # pass by coincidence (e.g. a bug that just kept the first N records).
+    keep = next(r for r in all_records if r["data"]["status"] == "Closed")
+
+    resp = client.get(
+        f"/templates/{template_id}/export", params={"ids": keep["id"]}
+    )
+    assert resp.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+    sheet = wb.active
+    assert sheet.max_row == 2  # header + the one kept record
+    assert [c.value for c in sheet[2]] == ["Closed", 5]
+
+
+def test_export_endpoint_without_ids_exports_everything(client):
+    template_id = _template_with_records(client)
+    resp = client.get(f"/templates/{template_id}/export")
+    assert resp.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+    sheet = wb.active
+    assert sheet.max_row == 3  # header + both records
+
+
+def test_export_endpoint_with_columns_only_includes_those_columns(client):
+    template_id = _template_with_records(client)
+    resp = client.get(
+        f"/templates/{template_id}/export", params={"columns": "status"}
+    )
+    assert resp.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+    sheet = wb.active
+    assert [c.value for c in sheet[1]] == ["status"]
+    assert [c.value for c in sheet[2]] == ["Open"]
+
+
+def test_export_endpoint_columns_keeps_template_order_not_query_order(client):
+    template_id = _template_with_records(client)
+    resp = client.get(
+        f"/templates/{template_id}/export",
+        params=[("columns", "amount"), ("columns", "status")],
+    )
+    assert resp.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+    sheet = wb.active
+    # Template defines status before amount -- the export keeps that order
+    # even though the query params list amount first.
+    assert [c.value for c in sheet[1]] == ["status", "amount"]
+
+
+def test_export_endpoint_without_columns_exports_everything(client):
+    template_id = _template_with_records(client)
+    resp = client.get(f"/templates/{template_id}/export")
+    assert resp.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+    sheet = wb.active
+    assert [c.value for c in sheet[1]] == ["status", "amount"]
+
+
 def test_export_endpoint_404_when_template_missing(client):
     resp = client.get("/templates/999/export")
     assert resp.status_code == 404

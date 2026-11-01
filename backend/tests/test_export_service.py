@@ -4,6 +4,7 @@ import io
 
 import openpyxl
 import pytest
+from openpyxl.chart import BarChart, PieChart
 
 from app.models.record import RecordRead
 from app.models.template import TemplateColumn, TemplateRead
@@ -95,7 +96,7 @@ def test_export_treats_leading_equals_value_as_literal_text_not_a_formula():
 def test_export_include_summary_with_zero_records_has_no_chart():
     template = _template([TemplateColumn(name="status", type="text", formula=None)])
     file_bytes = export_template_to_xlsx(
-        template, records=[], include_summary=True, group_by="status"
+        template, records=[], include_summary=True, group_by=["status"]
     )
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
     data_sheet = wb["Data"]
@@ -103,7 +104,7 @@ def test_export_include_summary_with_zero_records_has_no_chart():
     assert data_sheet.cell(row=1, column=summary_col).value == "Summary"
     assert [
         data_sheet.cell(row=2, column=summary_col + i).value for i in range(3)
-    ] == ["group_value", "count", "sum"]
+    ] == ["status", "count", "sum"]
     assert data_sheet.cell(row=3, column=summary_col).value is None
     assert len(data_sheet._charts) == 0
 
@@ -130,7 +131,7 @@ def test_export_include_summary_adds_summary_section_with_chart():
         template,
         records=records,
         include_summary=True,
-        group_by="status",
+        group_by=["status"],
         metric="amount",
     )
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
@@ -142,7 +143,7 @@ def test_export_include_summary_adds_summary_section_with_chart():
     assert data_sheet.cell(row=1, column=summary_col).value == "Summary"
     assert [
         data_sheet.cell(row=2, column=summary_col + i).value for i in range(3)
-    ] == ["group_value", "count", "sum"]
+    ] == ["status", "count", "sum"]
     values = {
         data_sheet.cell(row=r, column=summary_col).value: (
             data_sheet.cell(row=r, column=summary_col + 1).value,
@@ -153,5 +154,91 @@ def test_export_include_summary_adds_summary_section_with_chart():
     }
     assert values["Open"] == (2, 5.0)
     assert values["Closed"] == (1, 5.0)
-    # A native bar chart was added to the Data sheet, next to the section.
+    # A native bar chart was added to the Data sheet, next to the section --
+    # the default when chart_type isn't specified.
+    assert len(data_sheet._charts) == 1
+    assert isinstance(data_sheet._charts[0], BarChart)
+
+
+def test_export_include_summary_embeds_the_requested_chart_type():
+    template = _template([TemplateColumn(name="status", type="text", formula=None)])
+    records = [_record(1, {"status": "Open"}), _record(2, {"status": "Closed"})]
+    file_bytes = export_template_to_xlsx(
+        template,
+        records=records,
+        include_summary=True,
+        group_by=["status"],
+        chart_type="pie",
+    )
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
+    assert isinstance(wb["Data"]._charts[0], PieChart)
+
+
+def test_export_include_summary_charts_the_metric_total_not_the_count_when_metric_given():
+    template = _template(
+        [
+            TemplateColumn(name="status", type="text", formula=None),
+            TemplateColumn(name="amount", type="number", formula=None),
+        ]
+    )
+    records = [
+        _record(1, {"status": "Open", "amount": 2}),
+        _record(2, {"status": "Closed", "amount": 50}),
+    ]
+    file_bytes = export_template_to_xlsx(
+        template,
+        records=records,
+        include_summary=True,
+        group_by=["status"],
+        metric="amount",
+    )
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
+    chart = wb["Data"]._charts[0]
+    # The chart's single series references the "sum" column (F), not
+    # "count" (E) -- matches the summary view's own single-chart rule (plot
+    # the metric total once one's requested, not count alongside it).
+    assert chart.series[0].val.numRef.f == "'Data'!$F$3:$F$4"
+
+
+def test_export_include_summary_with_two_group_by_columns_writes_one_column_each():
+    template = _template(
+        [
+            TemplateColumn(name="region", type="text", formula=None),
+            TemplateColumn(name="status", type="text", formula=None),
+            TemplateColumn(name="amount", type="number", formula=None),
+        ]
+    )
+    records = [
+        _record(1, {"region": "West", "status": "Open", "amount": 2}),
+        _record(2, {"region": "West", "status": "Closed", "amount": 3}),
+        _record(3, {"region": "East", "status": "Open", "amount": 5}),
+    ]
+    file_bytes = export_template_to_xlsx(
+        template,
+        records=records,
+        include_summary=True,
+        group_by=["region", "status"],
+        metric="amount",
+    )
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
+    data_sheet = wb["Data"]
+    summary_col = len(template.columns) + 2
+    # One header column per group_by dimension, then count, then sum.
+    assert [
+        data_sheet.cell(row=2, column=summary_col + i).value for i in range(4)
+    ] == ["region", "status", "count", "sum"]
+    rows = {}
+    for r in range(3, data_sheet.max_row + 1):
+        region = data_sheet.cell(row=r, column=summary_col).value
+        if region is None:
+            continue
+        status = data_sheet.cell(row=r, column=summary_col + 1).value
+        count = data_sheet.cell(row=r, column=summary_col + 2).value
+        total = data_sheet.cell(row=r, column=summary_col + 3).value
+        rows[(region, status)] = (count, total)
+    assert rows == {
+        ("West", "Open"): (1, 2.0),
+        ("West", "Closed"): (1, 3.0),
+        ("East", "Open"): (1, 5.0),
+    }
     assert len(data_sheet._charts) == 1

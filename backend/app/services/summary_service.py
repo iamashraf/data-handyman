@@ -1,4 +1,5 @@
-"""Summary service: group records by one column and sum an optional metric.
+"""Summary service: group records by one or more columns and sum an optional
+metric.
 
 A column's value is read from a record's `data` first, then from its
 `computed` values.
@@ -33,19 +34,20 @@ def _group_key(value: Any) -> Any:
 
 
 def compute_summary(
-    records: list[RecordRead], group_by: str, metric: str | None = None
+    records: list[RecordRead], group_by: list[str], metric: str | None = None
 ) -> list[SummaryRow]:
-    groups: dict[Any, list[RecordRead]] = {}
+    groups: dict[tuple[Any, ...], list[RecordRead]] = {}
     for record in records:
-        key = _group_key(_value(record, group_by))
+        key = tuple(_group_key(_value(record, column)) for column in group_by)
         groups.setdefault(key, []).append(record)
 
     rows: list[SummaryRow] = []
-    for group_value, members in groups.items():
+    for key, members in groups.items():
         total: float | None = None
         if metric is not None:
             total = float(
                 sum(v for v in (_value(r, metric) for r in members) if _is_number(v))
             )
-        rows.append(SummaryRow(group_value=group_value, count=len(members), sum=total))
+        group_values = dict(zip(group_by, key, strict=True))
+        rows.append(SummaryRow(group_values=group_values, count=len(members), sum=total))
     return rows

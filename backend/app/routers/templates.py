@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.db import get_db
-from app.models.template import TemplateColumn, TemplateRead
+from app.models.template import TemplateColumn, TemplateRead, UniqueConstraint
 from app.services import template_service
 
 router = APIRouter(prefix="/templates", tags=["templates"])
@@ -14,11 +14,13 @@ router = APIRouter(prefix="/templates", tags=["templates"])
 class TemplateCreateRequest(BaseModel):
     name: str
     columns: list[TemplateColumn]
+    unique_constraints: list[UniqueConstraint] = []
 
 
 class TemplateUpdateRequest(BaseModel):
     name: str
     columns: list[TemplateColumn]
+    unique_constraints: list[UniqueConstraint] = []
     force: bool = False
 
 
@@ -38,7 +40,9 @@ def create_template(
     payload: TemplateCreateRequest, conn: sqlite3.Connection = Depends(get_db)
 ) -> TemplateRead:
     try:
-        return template_service.create_template(conn, payload.name, payload.columns)
+        return template_service.create_template(
+            conn, payload.name, payload.columns, payload.unique_constraints
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -66,7 +70,12 @@ def update_template(
 ) -> TemplateApplied | TemplateWarning:
     try:
         result = template_service.update_template(
-            conn, template_id, payload.name, payload.columns, force=payload.force
+            conn,
+            template_id,
+            payload.name,
+            payload.columns,
+            unique_constraints=payload.unique_constraints,
+            force=payload.force,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="Template not found") from exc

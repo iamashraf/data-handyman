@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { listTemplates, createTemplate, exportTemplate, importTemplate, ApiError } from "../../src/api/client";
+import {
+  listTemplates,
+  createTemplate,
+  exportTemplate,
+  getSummary,
+  importTemplate,
+  ApiError,
+} from "../../src/api/client";
 
 describe("listTemplates", () => {
   beforeEach(() => {
@@ -39,13 +46,43 @@ describe("exportTemplate", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const blob = await exportTemplate(1, { includeSummary: true, groupBy: "category", metric: "amount" });
+    const blob = await exportTemplate(1, { includeSummary: true, groupBy: ["category"], metric: "amount" });
 
     // Not asserting `instanceof Blob`: jsdom's fetch/Response implementation
     // returns a Blob from a different realm than the test file's global
     // Blob, so `instanceof` doesn't hold even though it behaves like one.
     expect(await blob.text()).toBe("xlsx-bytes");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("serializes a multi-column groupBy as repeated group_by query params", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toBe("/templates/1/export?include_summary=true&group_by=region&group_by=status");
+      return new Response("xlsx-bytes", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await exportTemplate(1, { includeSummary: true, groupBy: ["region", "status"] });
+  });
+
+  it("serializes ids as repeated ids query params", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toBe("/templates/1/export?ids=2&ids=5&ids=9");
+      return new Response("xlsx-bytes", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await exportTemplate(1, { ids: [2, 5, 9] });
+  });
+
+  it("sends no ids query param for an empty ids array (caller must not rely on this to mean 'export nothing')", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toBe("/templates/1/export");
+      return new Response("xlsx-bytes", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await exportTemplate(1, { ids: [] });
   });
 
   it("fetches with no query string when no options are given", async () => {
@@ -64,6 +101,34 @@ describe("exportTemplate", () => {
       vi.fn(async () => new Response(JSON.stringify({ detail: "group_by is required" }), { status: 422 }))
     );
     await expect(exportTemplate(1, { includeSummary: true })).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("getSummary", () => {
+  it("serializes a multi-column groupBy as repeated group_by query params", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toBe("/templates/1/summary?group_by=region&group_by=status&metric=amount");
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getSummary(1, ["region", "status"], "amount");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns rows shaped with a group_values dict", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify([{ group_values: { status: "Open" }, count: 2, sum: null }]),
+          { status: 200 }
+        )
+      )
+    );
+
+    const rows = await getSummary(1, ["status"]);
+    expect(rows).toEqual([{ group_values: { status: "Open" }, count: 2, sum: null }]);
   });
 });
 

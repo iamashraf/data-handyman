@@ -96,13 +96,11 @@
 }
 
 
-.dv-columns-menu,
-.dv-data-menu {
+.dv-columns-menu {
   position: relative;
 }
 
-.dv-columns-panel,
-.dv-data-menu-panel {
+.dv-columns-panel {
   top: calc(100% + var(--space-1));
   left: 0;
   min-width: 200px;

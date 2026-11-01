@@ -22,6 +22,16 @@ CREATE TABLE IF NOT EXISTS records (
     created_at TEXT,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS summary_views (
+    id INTEGER PRIMARY KEY,
+    template_id INTEGER,
+    name TEXT,
+    group_by TEXT,
+    metric TEXT,
+    chart_type TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
 """
 
 

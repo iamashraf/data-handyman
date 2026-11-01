@@ -3,7 +3,7 @@ import sqlite3
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
 
 from app.db import get_db
@@ -85,15 +85,32 @@ def _content_disposition(filename: str) -> str:
 def export_template(
     template_id: int,
     include_summary: bool = False,
-    group_by: str | None = None,
+    group_by: Annotated[list[str] | None, Query()] = None,
     metric: str | None = None,
+    ids: Annotated[list[int] | None, Query()] = None,
+    columns: Annotated[list[str] | None, Query()] = None,
+    chart_type: str = "bar",
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     template = template_service.get_template(conn, template_id)
     if template is None:
         raise HTTPException(status_code=404, detail="Template not found")
 
+    if columns is not None:
+        wanted_columns = set(columns)
+        # Keeps the template's own column order rather than the query
+        # param's -- the caller sends whichever columns are currently
+        # visible, not necessarily in column order. The summary section
+        # (if requested) is unaffected: it reads group_by/metric straight
+        # off each record's data, not off this column list.
+        template = template.model_copy(
+            update={"columns": [c for c in template.columns if c.name in wanted_columns]}
+        )
+
     records = record_service.list_records(conn, template_id)
+    if ids is not None:
+        wanted_ids = set(ids)
+        records = [r for r in records if r.id in wanted_ids]
     try:
         file_bytes = export_service.export_template_to_xlsx(
             template,
@@ -101,6 +118,7 @@ def export_template(
             include_summary=include_summary,
             group_by=group_by,
             metric=metric,
+            chart_type=chart_type,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

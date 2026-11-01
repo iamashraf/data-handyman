@@ -1,11 +1,14 @@
 import type {
+  ChartType,
   ImportResult,
   RecordRead,
   SummaryRow,
+  SummaryViewRead,
   TemplateApplyResult,
   TemplateColumn,
   TemplateRead,
   TemplateWarningResult,
+  UniqueConstraint,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -61,6 +64,7 @@ export function getTemplate(id: number): Promise<TemplateRead> {
 export function createTemplate(input: {
   name: string;
   columns: TemplateColumn[];
+  unique_constraints?: UniqueConstraint[];
 }): Promise<TemplateRead> {
   return request<TemplateRead>("/templates", {
     method: "POST",
@@ -70,7 +74,7 @@ export function createTemplate(input: {
 
 export function updateTemplate(
   id: number,
-  input: { name: string; columns: TemplateColumn[]; force?: boolean }
+  input: { name: string; columns: TemplateColumn[]; unique_constraints?: UniqueConstraint[]; force?: boolean }
 ): Promise<TemplateApplyResult | TemplateWarningResult> {
   return request<TemplateApplyResult | TemplateWarningResult>(`/templates/${id}`, {
     method: "PUT",
@@ -114,17 +118,37 @@ export function deleteRecord(id: number): Promise<void> {
 
 export async function exportTemplate(
   templateId: number,
-  options?: { includeSummary?: boolean; groupBy?: string; metric?: string }
+  options?: {
+    includeSummary?: boolean;
+    groupBy?: string[];
+    metric?: string;
+    ids?: (number | string)[];
+    columns?: string[];
+    chartType?: ChartType;
+  }
 ): Promise<Blob> {
   const params = new URLSearchParams();
   if (options?.includeSummary) {
     params.set("include_summary", "true");
   }
-  if (options?.groupBy) {
-    params.set("group_by", options.groupBy);
+  for (const column of options?.groupBy ?? []) {
+    params.append("group_by", column);
   }
   if (options?.metric) {
     params.set("metric", options.metric);
+  }
+  if (options?.ids) {
+    for (const id of options.ids) {
+      params.append("ids", String(id));
+    }
+  }
+  if (options?.columns) {
+    for (const column of options.columns) {
+      params.append("columns", column);
+    }
+  }
+  if (options?.chartType) {
+    params.set("chart_type", options.chartType);
   }
   const query = params.toString();
   const res = await fetch(`${BASE_URL}/templates/${templateId}/export${query ? `?${query}` : ""}`);
@@ -136,14 +160,40 @@ export async function exportTemplate(
 
 export function getSummary(
   templateId: number,
-  groupBy: string,
+  groupBy: string[],
   metric?: string
 ): Promise<SummaryRow[]> {
-  const params = new URLSearchParams({ group_by: groupBy });
+  const params = new URLSearchParams();
+  for (const column of groupBy) {
+    params.append("group_by", column);
+  }
   if (metric) {
     params.set("metric", metric);
   }
   return request<SummaryRow[]>(`/templates/${templateId}/summary?${params.toString()}`);
+}
+
+export function listSummaryViews(templateId: number): Promise<SummaryViewRead[]> {
+  return request<SummaryViewRead[]>(`/templates/${templateId}/summary-views`);
+}
+
+export function createSummaryView(
+  templateId: number,
+  input: { name: string; groupBy: string[]; metric?: string; chartType: ChartType }
+): Promise<SummaryViewRead> {
+  return request<SummaryViewRead>(`/templates/${templateId}/summary-views`, {
+    method: "POST",
+    ...jsonBody({
+      name: input.name,
+      group_by: input.groupBy,
+      metric: input.metric ?? null,
+      chart_type: input.chartType,
+    }),
+  });
+}
+
+export function deleteSummaryView(viewId: number): Promise<void> {
+  return request<void>(`/summary-views/${viewId}`, { method: "DELETE" });
 }
 
 export async function importTemplate(templateId: number, file: File): Promise<ImportResult> {

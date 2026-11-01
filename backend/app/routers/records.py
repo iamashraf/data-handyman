@@ -27,7 +27,10 @@ def create_record(
     payload: RecordCreateRequest,
     conn: sqlite3.Connection = Depends(get_db),
 ) -> RecordRead:
-    return record_service.create_record(conn, template_id, payload.data)
+    try:
+        return record_service.create_record(conn, template_id, payload.data)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/templates/{template_id}/records", response_model=list[RecordRead])
@@ -59,6 +62,8 @@ def update_record(
         return record_service.update_record(conn, record_id, payload.data)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="Record not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.delete("/records/{record_id}", status_code=204)

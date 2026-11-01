@@ -8,8 +8,9 @@ import sqlite3
 from typing import Any
 
 from app.models.record import RecordRaw, RecordRead
-from app.models.template import TemplateColumn
+from app.models.template import TemplateColumn, TemplateRead
 from app.repository import records_repo, templates_repo
+from app.services import unique_constraint_service
 from app.services.formula_service import FormulaError, evaluate_formula
 
 
@@ -32,6 +33,16 @@ def _template_columns(
     return template.columns if template else []
 
 
+def _raise_if_conflicts(
+    template: TemplateRead | None, data: dict, others: list[dict]
+) -> None:
+    if not template or not template.unique_constraints:
+        return
+    conflict = unique_constraint_service.find_conflict(template.unique_constraints, data, others)
+    if conflict:
+        raise ValueError(unique_constraint_service.conflict_message(conflict))
+
+
 def _to_read(record: RecordRaw, columns: list[TemplateColumn]) -> RecordRead:
     return RecordRead(
         id=record.id,
@@ -44,8 +55,12 @@ def _to_read(record: RecordRaw, columns: list[TemplateColumn]) -> RecordRead:
 
 
 def create_record(conn: sqlite3.Connection, template_id: int, data: dict) -> RecordRead:
+    template = templates_repo.get_template(conn, template_id)
+    if template and template.unique_constraints:
+        others = [r.data for r in records_repo.list_records(conn, template_id)]
+        _raise_if_conflicts(template, data, others)
     record = records_repo.create_record(conn, template_id, data)
-    return _to_read(record, _template_columns(conn, template_id))
+    return _to_read(record, template.columns if template else [])
 
 
 def get_record(conn: sqlite3.Connection, record_id: int) -> RecordRead:
@@ -71,8 +86,19 @@ def list_records(
 
 
 def update_record(conn: sqlite3.Connection, record_id: int, data: dict) -> RecordRead:
+    existing = records_repo.get_record(conn, record_id)
+    if existing is None:
+        raise LookupError(f"record {record_id} not found")
+    template = templates_repo.get_template(conn, existing.template_id)
+    if template and template.unique_constraints:
+        others = [
+            r.data
+            for r in records_repo.list_records(conn, existing.template_id)
+            if r.id != record_id
+        ]
+        _raise_if_conflicts(template, data, others)
     record = records_repo.update_record(conn, record_id, data)
-    return _to_read(record, _template_columns(conn, record.template_id))
+    return _to_read(record, template.columns if template else [])
 
 
 def delete_record(conn: sqlite3.Connection, record_id: int) -> None:

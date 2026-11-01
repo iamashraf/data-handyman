@@ -42,6 +42,7 @@ const TEMPLATE = {
     { name: "b", type: "number" as const, formula: null },
     { name: "ratio", type: "number" as const, formula: "=[@a]/[@b]" },
   ],
+  unique_constraints: [],
   created_at: "",
   updated_at: "",
 };
@@ -110,6 +111,7 @@ describe("DataViewPage", () => {
       id: 1,
       name: "Expenses",
       columns: [{ name: "active", type: "boolean" as const, formula: null }],
+      unique_constraints: [],
       created_at: "",
       updated_at: "",
     });
@@ -275,6 +277,10 @@ describe("DataViewPage", () => {
   });
 
   it("exports the template and triggers a file download", async () => {
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { a: 1, b: 1 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+      { id: 2, template_id: 1, data: { a: 2, b: 2 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+    ]);
     const blob = new Blob(["xlsx-bytes"]);
     vi.mocked(exportTemplate).mockResolvedValueOnce(blob);
     const createObjectURL = vi.fn(() => "blob:mock-url");
@@ -282,11 +288,92 @@ describe("DataViewPage", () => {
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
     render(<DataViewPage templateId={1} />);
     await screen.findByRole("heading", { name: "Expenses" });
-    // Export lives behind the "Data" dropdown.
-    await userEvent.click(screen.getByRole("button", { name: /^data/i }));
+    await screen.findByRole("grid");
     await userEvent.click(await screen.findByRole("button", { name: /^export$/i }));
-    await waitFor(() => expect(exportTemplate).toHaveBeenCalledWith(1));
+    // handleExport reads the grid's currently filtered+sorted row ids via
+    // forEachNodeAfterFilterAndSort and passes them as `ids`.
+    await waitFor(() => expect(exportTemplate).toHaveBeenCalledWith(1, { ids: [1, 2], columns: ["a", "b", "ratio"] }));
     expect(createObjectURL).toHaveBeenCalledWith(blob);
+  });
+
+  it("exports only the filtered rows' ids when a filter is active", async () => {
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { a: 1, b: 1 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+      { id: 2, template_id: 1, data: { a: 9, b: 9 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+    ]);
+    const blob = new Blob(["xlsx-bytes"]);
+    vi.mocked(exportTemplate).mockResolvedValueOnce(blob);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    render(<DataViewPage templateId={1} />);
+    await screen.findByRole("grid");
+    await waitFor(() => expect(screen.getByText("2 of 2 rows")).toBeInTheDocument());
+
+    await userEvent.type(screen.getByRole("searchbox"), "9");
+    await waitFor(() => expect(screen.getByText("1 of 2 rows")).toBeInTheDocument());
+
+    await userEvent.click(await screen.findByRole("button", { name: /^export$/i }));
+    await waitFor(() => expect(exportTemplate).toHaveBeenCalledWith(1, { ids: [2], columns: ["a", "b", "ratio"] }));
+  });
+
+  it("exports only the columns currently visible via the Columns menu", async () => {
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { a: 1, b: 1 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+    ]);
+    const blob = new Blob(["xlsx-bytes"]);
+    vi.mocked(exportTemplate).mockResolvedValueOnce(blob);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    render(<DataViewPage templateId={1} />);
+    await screen.findByRole("grid");
+
+    await userEvent.click(screen.getByRole("button", { name: /^columns/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /^b$/i }));
+
+    await userEvent.click(await screen.findByRole("button", { name: /^export$/i }));
+    await waitFor(() => expect(exportTemplate).toHaveBeenCalledWith(1, { ids: [1], columns: ["a", "ratio"] }));
+  });
+
+  it("refuses to export when the current filter matches zero rows, instead of silently exporting everything", async () => {
+    // An empty `ids` array serializes to no `ids` query param at all, which
+    // the backend treats as "export everything" -- so a filter matching no
+    // rows must not fall through to exportTemplate(id, { ids: [] }).
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { a: 1, b: 1 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+      { id: 2, template_id: 1, data: { a: 2, b: 2 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+    ]);
+    render(<DataViewPage templateId={1} />);
+    await screen.findByRole("grid");
+    await waitFor(() => expect(screen.getByText("2 of 2 rows")).toBeInTheDocument());
+
+    await userEvent.type(screen.getByRole("searchbox"), "zzz-no-match");
+    await waitFor(() => expect(screen.getByText("0 of 2 rows")).toBeInTheDocument());
+
+    await userEvent.click(await screen.findByRole("button", { name: /^export$/i }));
+    expect(await screen.findByText(/no rows match the current filter/i)).toBeInTheDocument();
+    expect(exportTemplate).not.toHaveBeenCalled();
+  });
+
+  it("still exports (header-only) a template with no rows at all, rather than treating the unmounted grid as a zero-match filter", async () => {
+    // `gridApiRef.current` is set once by onGridReady and never cleared, so
+    // once the template's last row is deleted and the grid unmounts, the
+    // ref still points at a destroyed API whose forEachNodeAfterFilterAndSort
+    // is a no-op -- this must not look like an active filter matching zero
+    // rows (the previous regression test's scenario).
+    vi.mocked(listRecords).mockResolvedValueOnce([
+      { id: 1, template_id: 1, data: { a: 1, b: 1 }, computed: { ratio: 1 }, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(deleteRecord).mockResolvedValueOnce(undefined);
+    const blob = new Blob(["xlsx-bytes"]);
+    vi.mocked(exportTemplate).mockResolvedValueOnce(blob);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    render(<DataViewPage templateId={1} />);
+    await userEvent.click(await screen.findByRole("button", { name: /row actions for 1/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /^delete$/i }));
+    await waitFor(() => expect(deleteRecord).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(screen.getByText("No rows yet")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole("button", { name: /^export$/i }));
+    await waitFor(() => expect(exportTemplate).toHaveBeenCalledWith(1, { ids: [], columns: ["a", "b", "ratio"] }));
+    expect(screen.queryByText(/no rows match the current filter/i)).not.toBeInTheDocument();
   });
 
   it("shows which rows failed and why after an import with errors", async () => {
@@ -297,7 +384,10 @@ describe("DataViewPage", () => {
     render(<DataViewPage templateId={1} />);
     await screen.findByRole("heading", { name: "Expenses" });
     const file = new File(["dummy"], "data.xlsx");
-    await userEvent.upload(screen.getByLabelText(/import/i), file);
+    // The toolbar's always-visible "Import" label and the empty state's
+    // "Import from Excel" label both match /import/i -- the exact text
+    // "Import" disambiguates to the toolbar one.
+    await userEvent.upload(screen.getByLabelText("Import"), file);
     expect(await screen.findByText(/row 3/i)).toBeInTheDocument();
     expect(screen.getByText(/invalid type for column 'count'/)).toBeInTheDocument();
   });
@@ -310,7 +400,7 @@ describe("DataViewPage", () => {
     render(<DataViewPage templateId={1} />);
     await screen.findByRole("heading", { name: "Expenses" });
     const file = new File(["dummy"], "data.xlsx");
-    await userEvent.upload(screen.getByLabelText(/import/i), file);
+    await userEvent.upload(screen.getByLabelText("Import"), file);
     expect(await screen.findByText(/nothing was imported/i)).toBeInTheDocument();
     expect(screen.queryByText(/0 rows imported/i)).not.toBeInTheDocument();
   });
@@ -320,7 +410,7 @@ describe("DataViewPage", () => {
     render(<DataViewPage templateId={1} />);
     await screen.findByRole("heading", { name: "Expenses" });
     const file = new File(["dummy"], "data.xlsx");
-    await userEvent.upload(screen.getByLabelText(/import/i), file);
+    await userEvent.upload(screen.getByLabelText("Import"), file);
     expect(await screen.findByText(/imported 4 rows/i)).toBeInTheDocument();
   });
 
@@ -332,6 +422,7 @@ describe("DataViewPage", () => {
         { name: "title", type: "text" as const, formula: null },
         { name: "notes", type: "text" as const, formula: null, format: "long_text" as const },
       ],
+      unique_constraints: [],
       created_at: "",
       updated_at: "",
     });
@@ -350,6 +441,7 @@ describe("DataViewPage", () => {
       id: 1,
       name: "Expenses",
       columns: [{ name: "Door No.", type: "number" as const, formula: null }],
+      unique_constraints: [],
       created_at: "",
       updated_at: "",
     });
@@ -368,6 +460,7 @@ describe("DataViewPage", () => {
         { name: "owner", type: "text" as const, formula: null },
         { name: "Door No.", type: "number" as const, formula: null },
       ],
+      unique_constraints: [],
       created_at: "",
       updated_at: "",
     });

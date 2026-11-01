@@ -316,7 +316,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const [columnsMenuFilter, setColumnsMenuFilter] = useState("");
-  const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const [newTemplateDialogOpen, setNewTemplateDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [creatingFromExcel, setCreatingFromExcel] = useState(false);
@@ -344,7 +343,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const latestRequest = useRef(0);
   const loadedTemplateId = useRef<number | undefined>(undefined);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
-  const dataMenuRef = useRef<HTMLDivElement>(null);
   const templateDropdownRef = useRef<HTMLDivElement>(null);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -365,9 +363,6 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     function closeMenus(event: MouseEvent) {
       if (columnsMenuRef.current && !columnsMenuRef.current.contains(event.target as Node)) {
         setColumnsMenuOpen(false);
-      }
-      if (dataMenuRef.current && !dataMenuRef.current.contains(event.target as Node)) {
-        setDataMenuOpen(false);
       }
       if (templateDropdownRef.current && !templateDropdownRef.current.contains(event.target as Node)) {
         setTemplateDropdownOpen(false);
@@ -756,7 +751,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         setRowCounts((prev) => ({ ...prev, [template.id]: (prev[template.id] ?? 0) + 1 }));
         setToast(null);
       })
-      .catch(() => setGridError("Couldn't restore this row."));
+      .catch((error) => setGridError(error instanceof ApiError ? describeApiError(error) : "Couldn't restore this row."));
   }
 
   function handleCloseEdit() {
@@ -814,7 +809,31 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     setExporting(true);
     setExportError(null);
     try {
-      const blob = await exportTemplate(selectedId);
+      const filteredIds: (number | string)[] = [];
+      gridApiRef.current?.forEachNodeAfterFilterAndSort((node) => {
+        if (node.data) filteredIds.push(node.data.id);
+      });
+      // An empty `ids` array serializes to no `ids` query param at all (the
+      // export API then falls back to "export everything"), so a filter
+      // that matches zero rows must be stopped here instead of silently
+      // exporting the unfiltered template. Gated on `records.length > 0`
+      // too: `gridApiRef.current` is never cleared when the grid unmounts
+      // (e.g. the template has no rows at all), so without this an empty
+      // template's "export for the headers" use case would be wrongly
+      // blocked as if a filter were active.
+      if (gridApiRef.current && records.length > 0 && filteredIds.length === 0) {
+        setExportError("No rows match the current filter to export.");
+        return;
+      }
+      // Export matches whatever the Columns menu currently shows -- "what
+      // you see is what you export", same philosophy as the row filter
+      // above.
+      const visibleColumns = template.columns.filter((c) => !hiddenColumns.has(c.name)).map((c) => c.name);
+      if (visibleColumns.length === 0) {
+        setExportError("No columns are visible to export.");
+        return;
+      }
+      const blob = await exportTemplate(selectedId, { ids: filteredIds, columns: visibleColumns });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -893,7 +912,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
     setBulkEditSaving(true);
     setBulkEditError(null);
     let successCount = 0;
-    const errors: string[] = [];
+    const errorMessages: string[] = [];
     for (const id of selectedRowIds) {
       const record = records.find((r) => r.id === id);
       if (!record) continue;
@@ -901,13 +920,19 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         const updated = await updateRecord(Number(id), { ...record.data, [bulkEditColumn]: bulkEditValue });
         setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
         successCount += 1;
-      } catch {
-        errors.push(String(id));
+      } catch (error) {
+        errorMessages.push(error instanceof ApiError ? describeApiError(error) : "Couldn't save this row.");
       }
     }
     setBulkEditSaving(false);
-    if (errors.length > 0) {
-      setBulkEditError(`Updated ${successCount} of ${selectedRowIds.length} rows. ${errors.length} failed.`);
+    if (errorMessages.length > 0) {
+      // Distinct reasons only -- bulk-editing many rows to the same value
+      // typically fails them all for the same reason (e.g. a unique
+      // constraint), and repeating it once per row would just be noise.
+      const distinctReasons = [...new Set(errorMessages)];
+      setBulkEditError(
+        `Updated ${successCount} of ${selectedRowIds.length} rows. ${errorMessages.length} failed: ${distinctReasons.join(" ")}`
+      );
     } else {
       setBulkEditOpen(false);
       showToast(`Updated ${successCount} row${successCount === 1 ? "" : "s"}.`);
@@ -1088,34 +1113,20 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
           </div>
         ) : null}
 
-        <div className="dv-data-menu" ref={dataMenuRef}>
-          <button
-            type="button"
-            className="dv-toolbar-button"
-            onClick={() => setDataMenuOpen((o) => !o)}
-            aria-expanded={dataMenuOpen}
-          >
-            Data ▾
-          </button>
-          {dataMenuOpen ? (
-            <div className="dv-data-menu-panel" role="menu">
-              <button type="button" onClick={() => { setDataMenuOpen(false); handleExport(); }} disabled={selectedId == null || exporting}>
-                {exporting ? "Exporting…" : "Export"}
-              </button>
-              <label className="dv-data-menu-import">
-                {importing ? "Importing…" : "Import"}
-                <input
-                  key={importInputKey}
-                  type="file"
-                  accept=".xlsx"
-                  className="dv-import-input"
-                  onChange={(e) => { setDataMenuOpen(false); handleImportFile(e); }}
-                  disabled={selectedId == null || importing}
-                />
-              </label>
-            </div>
-          ) : null}
-        </div>
+        <button type="button" className="dv-toolbar-button" onClick={handleExport} disabled={selectedId == null || exporting}>
+          {exporting ? "Exporting…" : "Export"}
+        </button>
+        <label className="dv-toolbar-button dv-import-label">
+          {importing ? "Importing…" : "Import"}
+          <input
+            key={importInputKey}
+            type="file"
+            accept=".xlsx"
+            className="dv-import-input"
+            onChange={handleImportFile}
+            disabled={selectedId == null || importing}
+          />
+        </label>
 
         <button type="button" className="dv-add-row-primary" onClick={handleOpenAdd} disabled={selectedId == null}>
           + Add row

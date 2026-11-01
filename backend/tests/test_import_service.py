@@ -8,8 +8,9 @@ import logging
 import openpyxl
 import pytest
 
-from app.models.template import TemplateColumn, TemplateRead
+from app.models.template import TemplateColumn, TemplateRead, UniqueConstraint
 from app.repository import records_repo
+from app.repository.templates_repo import create_template
 from app.services.import_service import import_xlsx
 
 
@@ -92,3 +93,61 @@ def test_unexpected_row_failure_is_logged_reported_and_does_not_abort_the_rest(
     assert "unexpected error" in result.errors[0].reason.lower()
     assert any("failed to save unexpectedly" in r.message for r in caplog.records)
     assert any(r.exc_info for r in caplog.records)  # full traceback was captured
+
+
+def _template_with_unique_serial(db_conn) -> TemplateRead:
+    columns = [
+        TemplateColumn(name="serial_no", type="text", formula=None),
+        TemplateColumn(name="amount", type="number", formula=None),
+    ]
+    constraints = [UniqueConstraint(name="Serial No", columns=["serial_no"])]
+    return create_template(db_conn, "T", columns, constraints)
+
+
+def test_row_duplicating_an_existing_record_is_skipped_but_others_still_import(db_conn):
+    template = _template_with_unique_serial(db_conn)
+    records_repo.create_record(db_conn, template.id, {"serial_no": "A1", "amount": 1})
+    file_bytes = _xlsx_bytes(
+        ["serial_no", "amount"],
+        [["A1", 2], ["A2", 3]],  # row 2 ("A1") duplicates the existing record
+    )
+
+    result = import_xlsx(db_conn, template, file_bytes)
+
+    assert result.imported_count == 1
+    assert len(result.errors) == 1
+    assert result.errors[0].row_number == 2
+    assert "Serial No" in result.errors[0].reason
+    remaining = records_repo.list_records(db_conn, template.id)
+    assert sorted(r.data["serial_no"] for r in remaining) == ["A1", "A2"]
+
+
+def test_second_of_two_duplicate_rows_in_the_same_file_is_skipped(db_conn):
+    template = _template_with_unique_serial(db_conn)
+    file_bytes = _xlsx_bytes(
+        ["serial_no", "amount"],
+        [["A1", 1], ["A1", 2]],  # the two rows duplicate each other
+    )
+
+    result = import_xlsx(db_conn, template, file_bytes)
+
+    assert result.imported_count == 1
+    assert len(result.errors) == 1
+    assert result.errors[0].row_number == 3  # header is row 1, so the second row is row 3
+    assert "Serial No" in result.errors[0].reason
+    remaining = records_repo.list_records(db_conn, template.id)
+    assert len(remaining) == 1
+    assert remaining[0].data["amount"] == 1
+
+
+def test_rows_with_blank_constrained_column_all_import_fine(db_conn):
+    template = _template_with_unique_serial(db_conn)
+    file_bytes = _xlsx_bytes(
+        ["serial_no", "amount"],
+        [[None, 1], [None, 2]],  # blank serial_no never conflicts with anything
+    )
+
+    result = import_xlsx(db_conn, template, file_bytes)
+
+    assert result.imported_count == 2
+    assert result.errors == []

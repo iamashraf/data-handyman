@@ -7,8 +7,9 @@ on update (see `_destructive_change_reasons`).
 import sqlite3
 from dataclasses import dataclass
 
-from app.models.template import TemplateColumn, TemplateRead
-from app.repository import records_repo, templates_repo
+from app.models.template import TemplateColumn, TemplateRead, UniqueConstraint
+from app.repository import records_repo, summary_views_repo, templates_repo
+from app.services import unique_constraint_service
 from app.services.formula_service import validate_formula
 
 
@@ -36,6 +37,22 @@ def _raise_if_invalid(columns: list[TemplateColumn], column_names: list[str]) ->
         if errors:
             raise ValueError(
                 f"Invalid formula for column '{col.name}': {'; '.join(errors)}"
+            )
+
+
+def _validate_constraints(
+    unique_constraints: list[UniqueConstraint], columns: list[TemplateColumn]
+) -> None:
+    non_formula_names = {c.name for c in columns if c.formula is None}
+    for constraint in unique_constraints:
+        if not constraint.columns:
+            raise ValueError(f"Unique constraint '{constraint.name}' needs at least one column")
+        unknown = [col for col in constraint.columns if col not in non_formula_names]
+        if unknown:
+            raise ValueError(
+                f"Unique constraint '{constraint.name}' references unknown or "
+                f"formula column(s) {unknown} -- a constraint can only cover "
+                "plain (non-formula) columns on this template"
             )
 
 
@@ -89,10 +106,15 @@ def _destructive_change_reasons(
 
 
 def create_template(
-    conn: sqlite3.Connection, name: str, columns: list[TemplateColumn]
+    conn: sqlite3.Connection,
+    name: str,
+    columns: list[TemplateColumn],
+    unique_constraints: list[UniqueConstraint] | None = None,
 ) -> TemplateRead:
+    unique_constraints = unique_constraints or []
     _raise_if_invalid(columns, [c.name for c in columns])
-    return templates_repo.create_template(conn, name, columns)
+    _validate_constraints(unique_constraints, columns)
+    return templates_repo.create_template(conn, name, columns, unique_constraints)
 
 
 def get_template(conn: sqlite3.Connection, template_id: int) -> TemplateRead | None:
@@ -105,9 +127,12 @@ def list_templates(conn: sqlite3.Connection) -> list[TemplateRead]:
 
 def delete_template(conn: sqlite3.Connection, template_id: int) -> None:
     # No FK/cascade at the schema level -- without this, a deleted
-    # template's records become permanently orphaned (invisible, but
-    # still occupying the database).
+    # template's records (and saved summary views) become permanently
+    # orphaned: invisible, but still occupying the database, and liable to
+    # resurface attached to an unrelated template if sqlite later reuses
+    # the freed id (ids aren't AUTOINCREMENT).
     records_repo.delete_records_by_template(conn, template_id)
+    summary_views_repo.delete_views_by_template(conn, template_id)
     templates_repo.delete_template(conn, template_id)
 
 
@@ -116,8 +141,10 @@ def update_template(
     template_id: int,
     name: str,
     columns: list[TemplateColumn],
+    unique_constraints: list[UniqueConstraint] | None = None,
     force: bool = False,
 ) -> TemplateUpdateResult:
+    unique_constraints = unique_constraints or []
     old = templates_repo.get_template(conn, template_id)
     if old is None:
         raise LookupError(f"template {template_id} not found")
@@ -136,6 +163,7 @@ def update_template(
         or old_by_name[col.name].formula != col.formula
     ]
     _raise_if_invalid(edited_or_new_columns, new_names)
+    _validate_constraints(unique_constraints, columns)
 
     unedited_surviving_columns = [
         col
@@ -148,6 +176,19 @@ def update_template(
         old.columns, columns, records, unedited_surviving_columns
     )
 
+    # A constraint being added or widened here can already be violated by
+    # existing data -- that's not a plain authoring error (the constraint
+    # itself is well-formed), so it joins the destructive-change warning
+    # instead of raising, with the same force-to-save-anyway escape hatch.
+    for constraint, affected in unique_constraint_service.conflicting_constraints(
+        unique_constraints, [r.data for r in records]
+    ):
+        reasons.append(
+            f"Unique constraint '{constraint.name}' ({', '.join(constraint.columns)}) "
+            f"conflicts with {affected} existing record(s) that share the same value"
+        )
+        affected_record_count = max(affected_record_count, affected)
+
     if reasons and not force:
         return TemplateUpdateResult(
             template=None,
@@ -156,5 +197,5 @@ def update_template(
             ),
         )
 
-    updated = templates_repo.update_template(conn, template_id, name, columns)
+    updated = templates_repo.update_template(conn, template_id, name, columns, unique_constraints)
     return TemplateUpdateResult(template=updated, warning=None)

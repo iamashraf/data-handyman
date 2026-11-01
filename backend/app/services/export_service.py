@@ -12,7 +12,14 @@ import json
 from typing import Any
 
 from openpyxl import Workbook
-from openpyxl.chart import BarChart, Reference
+from openpyxl.chart import AreaChart, BarChart, LineChart, PieChart, Reference
+
+_CHART_CLASSES = {
+    "bar": BarChart,
+    "line": LineChart,
+    "area": AreaChart,
+    "pie": PieChart,
+}
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -65,10 +72,11 @@ def export_template_to_xlsx(
     template: TemplateRead,
     records: list[RecordRead],
     include_summary: bool = False,
-    group_by: str | None = None,
+    group_by: list[str] | None = None,
     metric: str | None = None,
+    chart_type: str = "bar",
 ) -> bytes:
-    if include_summary and group_by is None:
+    if include_summary and not group_by:
         raise ValueError("group_by is required when include_summary is True")
 
     wb = Workbook()
@@ -91,25 +99,41 @@ def export_template_to_xlsx(
         # find.
         summary_rows = compute_summary(records, group_by, metric)
         summary_col = len(template.columns) + 2
+        # One column per group_by dimension, then count, then sum.
+        group_col_count = len(group_by)
 
         _set_cell_as_text_if_formula_like(data_sheet, 1, summary_col, "Summary")
         header_row = 2
-        for offset, header in enumerate(("group_value", "count", "sum")):
+        headers = [*group_by, "count", "sum"]
+        for offset, header in enumerate(headers):
             _set_cell_as_text_if_formula_like(data_sheet, header_row, summary_col + offset, header)
         for i, row in enumerate(summary_rows):
             r = header_row + 1 + i
-            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col, _to_excel_safe(row.group_value))
-            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col + 1, row.count)
-            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col + 2, row.sum)
+            for offset, column in enumerate(group_by):
+                _set_cell_as_text_if_formula_like(
+                    data_sheet, r, summary_col + offset, _to_excel_safe(row.group_values.get(column))
+                )
+            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col + group_col_count, row.count)
+            _set_cell_as_text_if_formula_like(data_sheet, r, summary_col + group_col_count + 1, row.sum)
 
         if summary_rows:
             last_row = header_row + len(summary_rows)
-            chart = BarChart()
+            count_col = summary_col + group_col_count
+            sum_col = count_col + 1
+            # Matches the summary view's own single-chart rule: plot the
+            # metric total when one was requested, otherwise the count.
+            value_col = sum_col if metric else count_col
+            chart_class = _CHART_CLASSES.get(chart_type, BarChart)
+            chart = chart_class()
             chart.title = "Summary"
             data_ref = Reference(
-                data_sheet, min_col=summary_col + 1, max_col=summary_col + 1,
+                data_sheet, min_col=value_col, max_col=value_col,
                 min_row=header_row, max_row=last_row,
             )
+            # The category axis labels a compound group by its first
+            # dimension's column -- openpyxl charts take one category
+            # range, not a composite label, same simplification the
+            # summary table avoids by giving each dimension its own column.
             categories_ref = Reference(
                 data_sheet, min_col=summary_col, min_row=header_row + 1, max_row=last_row
             )
