@@ -1,12 +1,17 @@
-# Handy Recorder
+# Data Handyman
 
-Handy Recorder is a web app for building custom data-entry templates (with
+Data Handyman is a web app for building custom data-entry templates (with
 formula columns), recording data against them, importing existing Excel
 files as templates, and exporting the results.
 
 This guide walks through running the app on Windows with Podman, written
 for someone who has never used a terminal before. No programming
 knowledge needed.
+
+Can't use containers on this PC (for example, virtualization can't be
+turned on)? See
+[Running without containers](docs/install-windows-no-container.md)
+instead.
 
 ## What you need
 

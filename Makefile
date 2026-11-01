@@ -1,4 +1,4 @@
-IMAGE := handy-recorder-dev
+IMAGE := data-handyman-dev
 
 .PHONY: lint test
 

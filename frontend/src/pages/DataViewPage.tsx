@@ -570,7 +570,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
 
   return (
     <div className="dv-page">
-      <h1 className="dv-header">Handy Recorder</h1>
+      <h1 className="dv-header">Data Handyman</h1>
       <div className="dv-layout">
         <aside className="dv-sidebar">
           <h2>View records for</h2>

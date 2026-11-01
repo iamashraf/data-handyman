@@ -245,7 +245,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
 
   return (
     <div className="tb-page">
-      <h1 className="tb-header">Handy Recorder</h1>
+      <h1 className="tb-header">Data Handyman</h1>
       <div className="tb-layout">
         <aside className="tb-sidebar">
           <h2>Templates</h2>

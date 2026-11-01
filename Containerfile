@@ -2,11 +2,11 @@
 # and the frontend's built static files from one process, one port.
 #
 # Build:
-#   podman build -t handy-recorder .
+#   podman build -t data-handyman .
 #
 # Run (with a named volume so data persists across restarts):
-#   podman run --rm -d -p 8000:8000 -v handy-recorder-data:/data \
-#     --name handy-recorder handy-recorder
+#   podman run --rm -d -p 8000:8000 -v data-handyman-data:/data \
+#     --name data-handyman data-handyman
 
 FROM node:26-slim AS frontend-build
 

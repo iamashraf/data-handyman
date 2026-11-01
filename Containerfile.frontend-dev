@@ -1,13 +1,13 @@
 # Dev container for the frontend. Used for all test and dev-server work.
 #
 # Build once:
-#   podman build -f Containerfile.frontend-dev -t handy-recorder-frontend-dev .
+#   podman build -f Containerfile.frontend-dev -t data-handyman-frontend-dev .
 #
 # Run tests:
-#   podman run --rm -v $(pwd)/frontend:/app -w /app handy-recorder-frontend-dev npm run test
+#   podman run --rm -v $(pwd)/frontend:/app -w /app data-handyman-frontend-dev npm run test
 #
 # Run the dev server (reloads on changes in frontend/):
-#   podman run --rm -p 5173:5173 -v $(pwd)/frontend:/app -w /app handy-recorder-frontend-dev
+#   podman run --rm -p 5173:5173 -v $(pwd)/frontend:/app -w /app data-handyman-frontend-dev
 
 FROM node:26-slim
 
