@@ -63,3 +63,12 @@ def update_record(conn: sqlite3.Connection, record_id: int, data: dict) -> Recor
 def delete_record(conn: sqlite3.Connection, record_id: int) -> None:
     conn.execute("DELETE FROM records WHERE id = ?", (record_id,))
     conn.commit()
+
+
+def delete_records_by_template(conn: sqlite3.Connection, template_id: int) -> None:
+    """Deletes every record under a template -- used when the template
+    itself is deleted, since there's no FK/cascade at the schema level and
+    these records would otherwise become permanently orphaned (invisible,
+    but still occupying the database)."""
+    conn.execute("DELETE FROM records WHERE template_id = ?", (template_id,))
+    conn.commit()

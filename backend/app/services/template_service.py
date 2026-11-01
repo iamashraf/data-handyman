@@ -104,6 +104,10 @@ def list_templates(conn: sqlite3.Connection) -> list[TemplateRead]:
 
 
 def delete_template(conn: sqlite3.Connection, template_id: int) -> None:
+    # No FK/cascade at the schema level -- without this, a deleted
+    # template's records become permanently orphaned (invisible, but
+    # still occupying the database).
+    records_repo.delete_records_by_template(conn, template_id)
     templates_repo.delete_template(conn, template_id)
 
 

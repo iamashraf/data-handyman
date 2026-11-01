@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from "react";
 import {
   ApiError,
   createTemplate,
+  deleteTemplate,
   getTemplate,
   listTemplates,
   updateTemplate,
@@ -83,6 +84,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
   const [columns, setColumns] = useState<ColumnDraft[]>([]);
   const [warning, setWarning] = useState<TemplateWarningResult | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -144,6 +146,32 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
     setWarning(null);
     setSaveError(null);
     clearStatus();
+  }
+
+  async function handleDelete(id: number, templateName: string) {
+    // Deleting a template also deletes all of its records (no undo) --
+    // confirm before doing something this permanent.
+    const confirmed = window.confirm(
+      `Delete "${templateName}" and all of its records? This can't be undone.`
+    );
+    if (!confirmed) {
+      return;
+    }
+    setDeletingId(id);
+    setSaveError(null);
+    try {
+      await deleteTemplate(id);
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      if (selectedId === id) {
+        handleNew();
+      }
+    } catch (error) {
+      setSaveError(
+        error instanceof ApiError ? describeApiError(error) : "Couldn't delete this template. Check your connection and try again."
+      );
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   function updateColumn(index: number, patch: Partial<ColumnDraft>) {
@@ -224,7 +252,7 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
           {templatesError ? <p className="tb-sidebar-error">{templatesError}</p> : null}
           <ul className="tb-sidebar-list">
             {templates.map((t) => (
-              <li key={t.id} className="tb-sidebar-item">
+              <li key={t.id} className="tb-sidebar-item tb-sidebar-item-row">
                 <button
                   type="button"
                   className="tb-sidebar-button"
@@ -232,6 +260,15 @@ export function TemplateBuilderPage({ templateId }: TemplateBuilderPageProps) {
                   onClick={() => handleSelect(t.id)}
                 >
                   {t.name}
+                </button>
+                <button
+                  type="button"
+                  className="tb-sidebar-delete"
+                  aria-label={`Delete template ${t.name}`}
+                  onClick={() => handleDelete(t.id, t.name)}
+                  disabled={deletingId === t.id}
+                >
+                  {deletingId === t.id ? "…" : "Delete"}
                 </button>
               </li>
             ))}

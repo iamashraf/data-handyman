@@ -42,8 +42,14 @@
   border-bottom: 1px solid var(--rule);
 }
 
+.tb-sidebar-item-row {
+  display: flex;
+  align-items: center;
+}
+
 .tb-sidebar-button {
   display: block;
+  flex: 1;
   width: 100%;
   text-align: left;
   background: none;
@@ -53,6 +59,30 @@
   color: var(--ink);
   cursor: pointer;
   border-left: 3px solid transparent;
+}
+
+/* Per-template delete action — same bordered, warn-on-hover treatment as
+   the Records grid's per-row .dv-delete-row, so the two destructive
+   actions in the app read consistently. */
+.tb-sidebar-delete {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  padding: var(--space-1) var(--space-2);
+  margin-right: var(--space-1);
+  cursor: pointer;
+}
+
+.tb-sidebar-delete:hover {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.tb-sidebar-delete:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .tb-sidebar-button:hover {
