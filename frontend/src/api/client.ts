@@ -1,5 +1,7 @@
 import type {
+  ImportResult,
   RecordRead,
+  SummaryRow,
   TemplateApplyResult,
   TemplateColumn,
   TemplateRead,
@@ -108,4 +110,51 @@ export function updateRecord(id: number, data: Record<string, unknown>): Promise
 
 export function deleteRecord(id: number): Promise<void> {
   return request<void>(`/records/${id}`, { method: "DELETE" });
+}
+
+export async function exportTemplate(
+  templateId: number,
+  options?: { includeSummary?: boolean; groupBy?: string; metric?: string }
+): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (options?.includeSummary) {
+    params.set("include_summary", "true");
+  }
+  if (options?.groupBy) {
+    params.set("group_by", options.groupBy);
+  }
+  if (options?.metric) {
+    params.set("metric", options.metric);
+  }
+  const query = params.toString();
+  const res = await fetch(`${BASE_URL}/templates/${templateId}/export${query ? `?${query}` : ""}`);
+  if (!res.ok) {
+    throw new ApiError(res.status, await parseBody(res));
+  }
+  return res.blob();
+}
+
+export function getSummary(
+  templateId: number,
+  groupBy: string,
+  metric?: string
+): Promise<SummaryRow[]> {
+  const params = new URLSearchParams({ group_by: groupBy });
+  if (metric) {
+    params.set("metric", metric);
+  }
+  return request<SummaryRow[]>(`/templates/${templateId}/summary?${params.toString()}`);
+}
+
+export async function importTemplate(templateId: number, file: File): Promise<ImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${BASE_URL}/templates/${templateId}/import`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, await parseBody(res));
+  }
+  return (await parseBody(res)) as ImportResult;
 }
