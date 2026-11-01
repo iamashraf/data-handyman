@@ -556,22 +556,12 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
   const columnDefs = useMemo<ColDef[]>(() => {
     if (!template) return [];
 
-    const selectColumn: ColDef = {
-      colId: "__select",
-      headerName: "",
-      width: 44,
-      minWidth: 44,
-      maxWidth: 44,
-      pinned: "left",
-      sortable: false,
-      filter: false,
-      resizable: false,
-      suppressHeaderMenuButton: true,
-      checkboxSelection: (params) => !params.node.rowPinned,
-      headerCheckboxSelection: true,
-      cellDataType: false,
-    };
-
+    // No manual "__select" colDef here: a pinned-left checkbox column
+    // (header "select all" + per-row) is rendered entirely by AG-Grid's
+    // own row-selection mechanism via the rowSelection prop below.
+    // Declaring both at once (this used to also set colDef-level
+    // checkboxSelection/headerCheckboxSelection) made the grid render a
+    // second, separate "ag-Grid-SelectionColumn" alongside this one.
     const dataColumns: ColDef[] = template.columns
       .filter((col) => !hiddenColumns.has(col.name))
       .map((col, index) => {
@@ -661,7 +651,7 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
         onDelete: handleDeleteRow,
       },
     };
-    return [selectColumn, ...dataColumns, actionsColumn];
+    return [...dataColumns, actionsColumn];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template, hiddenColumns, records]);
 
@@ -1203,7 +1193,16 @@ export function DataViewPage({ templateId }: DataViewPageProps) {
               defaultColDef={defaultColDef}
               pinnedBottomRowData={pinnedBottomRowData}
               getRowId={(params) => String(params.data.id)}
-              rowSelection={{ mode: "multiRow", checkboxes: false, headerCheckbox: false }}
+              rowSelection={{ mode: "multiRow", checkboxes: true, headerCheckbox: true }}
+              selectionColumnDef={{
+                pinned: "left",
+                width: 44,
+                minWidth: 44,
+                maxWidth: 44,
+                resizable: false,
+                sortable: false,
+                suppressHeaderMenuButton: true,
+              }}
               suppressRowClickSelection
               quickFilterText={quickFilter}
               debounceVerticalScrollbar
